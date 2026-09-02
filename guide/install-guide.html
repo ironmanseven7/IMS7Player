@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Xtream Player - Fire TV Install Guide (Large Print)</title>
+<style>
+  /* Large-print guide.
+
+     Sizes are the real printed sizes: Chrome print-to-pdf maps CSS pt to PDF
+     pt one to one. Verified by measuring the finished PDF.
+
+     - 24pt body (very large print), 1.5 line height
+     - pure black on white, the highest contrast available
+     - Verdana: wide letterforms and open counters read better at low vision
+     - left aligned, never justified, no hyphenation - ragged right is easier to
+       track back to the start of the next line
+     - one step per page, so nothing is crowded
+     - meaning never rests on colour alone; every cue is repeated in words
+     - a line holds only ~40 characters at this size, so sentences stay short */
+
+  @page { size: letter; margin: 0.5in; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: Verdana, Tahoma, Arial, sans-serif;
+    font-size: 24pt;            /* very large print */
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+    text-align: left;
+    hyphens: none;
+  }
+
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+
+  h1 { font-size: 40pt; line-height: 1.1; margin: 0 0 12pt; }
+  h2 { font-size: 30pt; line-height: 1.15; margin: 0 0 12pt; }
+  p { margin: 0 0 12pt; }
+
+  .step-head {
+    display: flex;
+    align-items: center;
+    gap: 14pt;
+    margin-bottom: 12pt;
+    border-bottom: 4pt solid #000;
+    padding-bottom: 8pt;
+  }
+  .step-num {
+    flex: 0 0 auto;
+    width: 54pt;
+    height: 54pt;
+    border-radius: 50%;
+    background: #000;
+    color: #fff;
+    font-size: 32pt;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-title { font-size: 26.7pt; font-weight: 700; line-height: 1.1; }
+
+  ol { margin: 0 0 12pt; padding-left: 30pt; }
+  ul { margin: 0 0 12pt; padding-left: 28pt; }
+  li { margin-bottom: 8pt; }
+
+  .address {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 20.7pt;
+    font-weight: 700;
+    border: 4pt solid #000;
+    padding: 10pt;
+    margin: 0 0 12pt;
+    word-break: break-all;
+    line-height: 1.35;
+  }
+
+  .note {
+    border-left: 10pt solid #000;
+    background: #eee;
+    padding: 10pt 14pt;
+    margin: 0 0 12pt;
+  }
+  .note .label {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1pt;
+    font-size: 18pt;
+    margin-bottom: 6pt;
+  }
+  .note p:last-child { margin-bottom: 0; }
+
+  figure { margin: 12pt 0 0; }
+  figcaption { font-size: 18pt; margin-top: 8pt; }
+  svg {
+    width: 100%;
+    height: auto;
+    max-height: 3.3in;           /* safety cap; page width is the real constraint */
+    display: block;
+    border: 3pt solid #000;
+    background: #fff;
+  }
+
+  .fill { border: 4pt solid #000; padding: 12pt; margin-bottom: 12pt; }
+  .fill .lbl { font-weight: 700; }
+  .fill .line { border-bottom: 3pt solid #000; height: 36pt; margin: 4pt 0 16pt; }
+  .fill .line:last-child { margin-bottom: 4pt; }
+
+  hr.rule { border: 0; border-top: 6pt solid #000; margin: 16pt 0; }
+  .big { font-size: 28pt; font-weight: 700; line-height: 1.2; }
+</style>
+</head>
+<body>
+
+<!-- ══════════ COVER ══════════ -->
+<section class="page">
+  <h1>Xtream Player<br />Install Guide</h1>
+  <hr class="rule" />
+  <p class="big">Putting the TV app on a Fire TV Stick.</p>
+  <p>There are <strong>7 steps</strong>. Each one has its own page and a picture.</p>
+  <p>You need the Fire TV remote and about 10 minutes.</p>
+  <div class="note">
+    <p class="label">Please note</p>
+    <p>The pictures are <strong>drawings</strong>, not photos. The real screen
+      will look similar, not identical.</p>
+  </div>
+</section>
+
+<!-- ══════════ THE REMOTE ══════════ -->
+<section class="page">
+  <h2>Your remote</h2>
+  <p><strong>Arrows</strong> move the highlight.</p>
+  <p>The <strong>middle button</strong> is OK. It chooses things.</p>
+  <p><strong>Back</strong> is below and to the left.</p>
+
+  <figure>
+    <svg viewBox="0 0 900 260" role="img" aria-label="Drawing of a Fire TV remote. A round direction pad sits near the top with four arrows around a solid centre button. A back button with a curved arrow sits below and to the left.">
+      <title>The Fire TV remote</title>
+      <rect x="370" y="15" width="170" height="235" rx="38" fill="#fff" stroke="#000" stroke-width="6"/>
+      <circle cx="455" cy="100" r="62" fill="#fff" stroke="#000" stroke-width="8"/>
+      <circle cx="455" cy="100" r="24" fill="#000"/>
+      <path d="M455 52 l-13 20 h26 z" fill="#000"/>
+      <path d="M455 148 l-13 -20 h26 z" fill="#000"/>
+      <path d="M407 100 l20 -13 v26 z" fill="#000"/>
+      <path d="M503 100 l-20 -13 v26 z" fill="#000"/>
+      <circle cx="405" cy="200" r="22" fill="#fff" stroke="#000" stroke-width="6"/>
+      <path d="M414 200 h-16 M404 192 l-8 8 8 8" fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="600" y="80" font-family="Verdana" font-size="34" font-weight="bold">Arrows</text>
+      <text x="600" y="132" font-family="Verdana" font-size="34" font-weight="bold">OK</text>
+      <text x="150" y="212" font-family="Verdana" font-size="34" font-weight="bold">Back</text>
+      <line x1="588" y1="70" x2="512" y2="82" stroke="#000" stroke-width="5"/>
+      <line x1="588" y1="122" x2="484" y2="103" stroke="#000" stroke-width="5"/>
+      <line x1="270" y1="205" x2="378" y2="202" stroke="#000" stroke-width="5"/>
+    </svg>
+    <figcaption>Arrows move. Middle is OK.</figcaption>
+  </figure>
+</section>
+
+<!-- ══════════ STEP 1 ══════════ -->
+<section class="page">
+  <div class="step-head">
+    <div class="step-num">1</div>
+    <div class="step-title">Get Downloader</div>
+  </div>
+
+  <p>On the Fire TV, go to <strong>Find</strong>, then <strong>Search</strong>.</p>
+  <p>Type <strong>Downloader</strong> and choose <strong>Get</strong>.</p>
+  <p>Already have it? Go to Step 2.</p>
+
+  <figure>
+    <svg viewBox="0 0 900 250" role="img" aria-label="Drawing of a search box with the word Downloader typed into it. Below it is the Downloader app icon, a dark circle with a downward arrow, next to a Get button.">
+      <title>Searching for Downloader</title>
+      <rect x="20" y="18" width="860" height="72" rx="12" fill="#fff" stroke="#000" stroke-width="6"/>
+      <text x="45" y="70" font-family="Verdana" font-size="42" font-weight="bold">Downloader</text>
+      <circle cx="105" cy="175" r="52" fill="#000"/>
+      <path d="M105 145 v42 M87 170 l18 20 18 -20" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="185" y="172" font-family="Verdana" font-size="34" font-weight="bold">Downloader</text>
+      <text x="185" y="214" font-family="Verdana" font-size="34">by AFTVnews</text>
+      <rect x="655" y="140" width="215" height="72" rx="12" fill="#000"/>
+      <text x="712" y="190" font-family="Verdana" font-size="36" font-weight="bold" fill="#fff">Get</text>
+    </svg>
+    <figcaption>Search, then choose Get.</figcaption>
+  </figure>
+</section>
+
+<!-- ══════════ STEP 2 ══════════ -->
+<section class="page">
+  <div class="step-head">
+    <div class="step-num">2</div>
+    <div class="step-title">Allow installing</div>
+  </div>
+
+  <p>Without this, the install is refused.</p>
+  <p>Go to <strong>Settings</strong>, then:</p>
+  <ol>
+    <li>My Fire TV</li>
+    <li>Developer options</li>
+    <li>Install unknown apps</li>
+    <li>Turn <strong>Downloader</strong> ON</li>
+  </ol>
+
+  <figure>
+    <svg viewBox="0 0 900 170" role="img" aria-label="Drawing of a switch labelled Downloader. On the left it is off, with the knob to the left. An arrow points right to the same switch turned on, filled solid with the knob to the right.">
+      <title>Turning the Downloader switch on</title>
+      <text x="20" y="60" font-family="Verdana" font-size="34" font-weight="bold">Downloader</text>
+      <rect x="60" y="85" width="160" height="64" rx="32" fill="#fff" stroke="#000" stroke-width="6"/>
+      <circle cx="95" cy="117" r="21" fill="#000"/>
+      <text x="245" y="128" font-family="Verdana" font-size="30">OFF</text>
+      <path d="M350 117 h90 M425 102 l18 15 -18 15" fill="none" stroke="#000" stroke-width="7"/>
+      <rect x="490" y="85" width="160" height="64" rx="32" fill="#000"/>
+      <circle cx="615" cy="117" r="21" fill="#fff"/>
+      <text x="675" y="128" font-family="Verdana" font-size="30" font-weight="bold">ON</text>
+    </svg>
+    <figcaption>Switch it to ON.</figcaption>
+  </figure>
+</section>
+
+<!-- ══════════ STEP 3 ══════════ -->
+<section class="page">
+  <div class="step-head">
+    <div class="step-num">3</div>
+    <div class="step-title">Type the address</div>
+  </div>
+
+  <p>Open <strong>Downloader</strong>. Press OK on the address box and type:</p>
+
+  <div class="address">ironmanseven7.github.io/IMS7Player</div>
+
+  <p>No spaces. The dots and the slash matter.</p>
+
+  <figure>
+    <svg viewBox="0 0 900 190" role="img" aria-label="Drawing of the Downloader address box with the address typed inside it, and a Go button below.">
+      <title>The address box with the address typed in</title>
+      <rect x="20" y="18" width="860" height="76" rx="10" fill="#fff" stroke="#000" stroke-width="6"/>
+      <text x="38" y="68" font-family="Consolas, monospace" font-size="31" font-weight="bold">ironmanseven7.github.io/IMS7Player</text>
+      <rect x="360" y="115" width="180" height="62" rx="10" fill="#000"/>
+      <text x="422" y="158" font-family="Verdana" font-size="34" font-weight="bold" fill="#fff">Go</text>
+    </svg>
+    <figcaption>Then choose Go.</figcaption>
+  </figure>
+</section>
+
+<!-- ══════════ STEP 4 ══════════ -->
+<section class="page">
+  <div class="step-head">
+    <div class="step-num">4</div>
+    <div class="step-title">Let it download</div>
+  </div>
+
+  <p>A bar fills from left to right.</p>
+  <p>The file is small. It takes a few seconds.</p>
+
+  <div class="note">
+    <p class="label">If a page appears</p>
+    <p>Move to the <strong>Download the APK</strong> button and press OK.</p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 900 150" role="img" aria-label="Drawing of a download progress bar roughly two thirds full, with the file name app dash debug dot a p k below it.">
+      <title>Download in progress</title>
+      <rect x="20" y="20" width="860" height="58" rx="8" fill="#fff" stroke="#000" stroke-width="6"/>
+      <rect x="26" y="26" width="560" height="46" fill="#000"/>
+      <text x="20" y="128" font-family="Consolas, monospace" font-size="30">app-debug.apk</text>
+    </svg>
+    <figcaption>Downloading.</figcaption>
+  </figure>
+</section>
+
+<!-- ══════════ STEP 5 ══════════ -->
+<section class="page">
+  <div class="step-head">
+    <div class="step-num">5</div>
+    <div class="step-title">Choose Install</div>
+  </div>
+
+  <p>A box asks if you want to install it.</p>
+  <p>Move <strong>right</strong> to <strong>Install</strong> and press OK.</p>
+
+  <div class="note">
+    <p class="label">If it says blocked</p>
+    <p>Do Step 2 again. The permission is off.</p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 900 170" role="img" aria-label="Drawing of the install box. A Cancel button is on the left and an Install button on the right. Install is drawn solid with a thick border to show it is the one to choose.">
+      <title>The install box</title>
+      <rect x="20" y="15" width="860" height="140" rx="12" fill="#fff" stroke="#000" stroke-width="6"/>
+      <text x="45" y="70" font-family="Verdana" font-size="34" font-weight="bold">Xtream Player</text>
+      <rect x="420" y="90" width="180" height="52" rx="8" fill="#fff" stroke="#000" stroke-width="4"/>
+      <text x="455" y="126" font-family="Verdana" font-size="30">Cancel</text>
+      <rect x="640" y="84" width="205" height="64" rx="8" fill="#000" stroke="#000" stroke-width="10"/>
+      <text x="672" y="127" font-family="Verdana" font-size="32" font-weight="bold" fill="#fff">Install</text>
+    </svg>
+    <figcaption>Install is on the right.</figcaption>
+  </figure>
+</section>
+
+<!-- ══════════ STEP 6 ══════════ -->
+<section class="page">
+  <div class="step-head">
+    <div class="step-num">6</div>
+    <div class="step-title">Open it</div>
+  </div>
+
+  <p>The box says <strong>App installed</strong>.</p>
+  <p>Choose <strong>Open</strong>.</p>
+  <p>Later, find <strong>Xtream Player</strong> with your other apps.</p>
+
+  <figure>
+    <svg viewBox="0 0 900 170" role="img" aria-label="Drawing of the app installed box, with a Done button on the left and an Open button on the right drawn solid with a thick border.">
+      <title>App installed</title>
+      <rect x="20" y="15" width="860" height="140" rx="12" fill="#fff" stroke="#000" stroke-width="6"/>
+      <text x="45" y="70" font-family="Verdana" font-size="34" font-weight="bold">App installed</text>
+      <rect x="420" y="90" width="180" height="52" rx="8" fill="#fff" stroke="#000" stroke-width="4"/>
+      <text x="465" y="126" font-family="Verdana" font-size="30">Done</text>
+      <rect x="640" y="84" width="205" height="64" rx="8" fill="#000" stroke="#000" stroke-width="10"/>
+      <text x="685" y="127" font-family="Verdana" font-size="32" font-weight="bold" fill="#fff">Open</text>
+    </svg>
+    <figcaption>Choose Open.</figcaption>
+  </figure>
+</section>
+
+<!-- ══════════ STEP 7 ══════════ -->
+<section class="page">
+  <div class="step-head">
+    <div class="step-num">7</div>
+    <div class="step-title">Sign in</div>
+  </div>
+
+  <p>Type these three things, then choose <strong>Connect</strong>.</p>
+
+  <div class="fill">
+    <div class="lbl">Server address</div>
+    <div class="line"></div>
+    <div class="lbl">Username</div>
+    <div class="line"></div>
+    <div class="lbl">Password</div>
+    <div class="line"></div>
+  </div>
+
+  <div class="note">
+    <p class="label">Ask Clayton</p>
+    <p>These are not printed here. Write them on the lines.</p>
+  </div>
+</section>
+
+<!-- ══════════ USING IT ══════════ -->
+<section class="page">
+  <h2>Using the app</h2>
+  <p>The highlighted item has a <strong>thick blue outline</strong>.</p>
+  <p><strong>Left and right</strong> move between the three columns.</p>
+  <p><strong>Up and down</strong> move inside a column.</p>
+  <p><strong>OK</strong> starts it. <strong>Back</strong> leaves full screen.</p>
+
+  <figure>
+    <svg viewBox="0 0 900 200" role="img" aria-label="Drawing of the app in three columns. Groups on the left, channels in the middle with one row drawn with a thick outline to show it is highlighted, and the television picture on the right.">
+      <title>The three columns</title>
+      <rect x="15" y="15" width="175" height="170" rx="10" fill="#fff" stroke="#000" stroke-width="5"/>
+      <text x="32" y="52" font-family="Verdana" font-size="30" font-weight="bold">Groups</text>
+      <line x1="32" y1="80" x2="172" y2="80" stroke="#000" stroke-width="5"/>
+      <line x1="32" y1="115" x2="172" y2="115" stroke="#000" stroke-width="5"/>
+      <line x1="32" y1="150" x2="172" y2="150" stroke="#000" stroke-width="5"/>
+      <rect x="210" y="15" width="250" height="170" rx="10" fill="#fff" stroke="#000" stroke-width="5"/>
+      <text x="228" y="52" font-family="Verdana" font-size="30" font-weight="bold">Channels</text>
+      <rect x="222" y="68" width="226" height="46" rx="8" fill="#fff" stroke="#000" stroke-width="10"/>
+      <text x="238" y="100" font-family="Verdana" font-size="30" font-weight="bold">Highlighted</text>
+      <line x1="230" y1="145" x2="440" y2="145" stroke="#000" stroke-width="5"/>
+      <rect x="480" y="15" width="405" height="170" rx="10" fill="#000"/>
+      <path d="M645 75 l58 30 -58 30 z" fill="#fff"/>
+      <text x="545" y="172" font-family="Verdana" font-size="30" font-weight="bold" fill="#fff">The picture</text>
+    </svg>
+    <figcaption>Groups, channels, picture.</figcaption>
+  </figure>
+</section>
+
+<!-- ══════════ VOICE ══════════ -->
+<section class="page">
+  <h2>Voice</h2>
+  <p>There is a <strong>Voice</strong> button at the top of the app.</p>
+  <p>Choose it, then speak. For example:</p>
+  <ul>
+    <li>"watch CNN"</li>
+    <li>"bring up movies"</li>
+    <li>"pause"</li>
+  </ul>
+  <p>The first time, the Fire TV asks to use the microphone. Choose
+    <strong>Allow</strong>, then press Voice again.</p>
+</section>
+
+<!-- ══════════ TROUBLE ══════════ -->
+<section class="page">
+  <h2>If it goes wrong</h2>
+
+  <p><strong>"App not installed"</strong><br />Do Step 2 again.</p>
+  <p><strong>Page not found</strong><br />Check the address for typing mistakes.</p>
+  <p><strong>No picture</strong><br />Choose <strong>Diagnostics</strong> at the top and read it out.</p>
+  <p><strong>Picture keeps stopping</strong><br />Set <strong>Buffering</strong> to <strong>Smooth</strong>.</p>
+</section>
+
+<!-- ══════════ THANKS ══════════ -->
+<section class="page">
+  <h2>Thank you</h2>
+  <p class="big">Thank you for testing this.</p>
+  <hr class="rule" />
+  <p>Anything confusing or hard to read is worth saying.</p>
+  <p>That is exactly what is useful to hear.</p>
+</section>
+
+</body>
+</html>
