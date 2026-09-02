@@ -1,11 +1,15 @@
 # Builds the APK in the cloud, so nothing has to be installed locally.
-# Push this folder as a repo, then grab the APK from the run's Artifacts.
+# The APK is published two ways: as a run artifact, and as a "latest" release,
+# which gives a stable link you can open directly on the phone.
 name: Build APK
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write        # needed to publish the release
 
 jobs:
   build:
@@ -20,16 +24,39 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      - uses: gradle/actions/setup-gradle@v3
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
+          # GitHub's cache service has flaky spells; a cache miss should never
+          # be the reason a build produces nothing.
+          cache-disabled: true
 
       - name: Build debug APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon --stacktrace
 
-      - uses: actions/upload-artifact@v4
+      - name: Show what was built
+        run: |
+          echo "APKs produced:"
+          find android/app/build/outputs -name '*.apk' -print -exec ls -lh {} \;
+
+      - name: Upload APK as a run artifact
+        uses: actions/upload-artifact@v4
         with:
           name: xtream-player-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/**/*.apk
           if-no-files-found: error
+          retention-days: 30
+
+      # A release is easier to install from: a direct .apk link rather than a
+      # zip, and the URL stays the same for every build.
+      - name: Publish to the "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest \
+            android/app/build/outputs/apk/debug/*.apk \
+            --title "Latest build" \
+            --notes "Debug APK built from ${{ github.sha }}" \
+            --prerelease
