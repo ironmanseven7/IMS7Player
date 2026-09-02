@@ -203,6 +203,57 @@ The APK lands in `android/app/build/outputs/apk/debug/`. It is debug-signed — 
 sideloading onto your own devices, not for the Play Store. Enable "install unknown apps" on
 the phone, or `adb install app-debug.apk`.
 
+## Installing on Fire TV / Shield with Downloader
+
+First, on the device: **Settings → My Fire TV → Developer Options → Install unknown apps →
+Downloader → On**. (On a Shield: Settings → Security & restrictions → Unknown sources →
+Downloader.) Without this, Downloader fetches the file and the install is refused.
+
+Then pick one of these.
+
+### Option A — public repo, permanent URL (easiest to live with)
+
+If the repository is public, the release asset is a plain public download and this URL never
+changes between builds:
+
+```
+https://github.com/<user>/<repo>/releases/latest/download/app-debug.apk
+```
+
+Type that into Downloader once. Every future build replaces the file at the same address, so
+re-downloading it is how you update.
+
+Nothing in this repository is secret — no credentials, no panel address, no username. The
+player keeps all of that in the browser's localStorage on your own device, never in a file.
+Making it public exposes only the code.
+
+### Option B — keep the repo private, serve it from your PC over the LAN
+
+The private-repo release URL needs a GitHub login, which Downloader cannot do. Instead, hand
+the file to the TV from the machine that already runs the desktop player:
+
+1. Download `app-debug.apk` from the release on your PC.
+2. Drop it in the `xtream-player` folder, next to `server.js`.
+3. Start the server so the network can reach it:
+
+   ```
+   set BIND=0.0.0.0 && node server.js
+   ```
+
+   It prints the exact address to type, e.g. `http://192.168.1.50:8787/apk`.
+4. Enter that in Downloader. It downloads and offers to install.
+5. Stop the server when you are done — `BIND=0.0.0.0` also exposes `/stream` to your network.
+
+The PC only needs to be on for the install itself, not for watching afterwards.
+
+### Option C — sideload over adb
+
+With the TV's ADB debugging enabled and on the same network:
+
+```
+adb connect <tv-ip>:5555 && adb install -r app-debug.apk
+```
+
 ### Limits
 
 - Debug signing means Android shows an "unknown developer" warning on install.

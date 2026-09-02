@@ -422,6 +422,37 @@ async function handleProbe(req, res, url) {
   sendJson(res, 200, { tried: origins.length, results });
 }
 
+/**
+ * Hand out an APK dropped in this folder, for sideloading with Downloader on a
+ * Fire TV or Shield. Typing a LAN address into a TV remote is tolerable; typing
+ * a GitHub URL and signing in is not.
+ *
+ * Requires BIND=0.0.0.0 so the TV can reach it. See the README warning: that
+ * also exposes /stream to your network, so turn it off when you're done.
+ */
+function serveApk(req, res) {
+  let apk;
+  try {
+    apk = fs.readdirSync(__dirname).filter((f) => f.toLowerCase().endsWith('.apk')).sort().pop();
+  } catch {
+    apk = null;
+  }
+  if (!apk) {
+    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+    return res.end('No .apk in the xtream-player folder. Download one from the GitHub release and drop it here.');
+  }
+
+  const file = path.join(__dirname, apk);
+  const size = fs.statSync(file).size;
+  logLine(`APK  serving ${apk} (${(size / 1048576).toFixed(1)} MB) to ${req.socket.remoteAddress}`);
+  res.writeHead(200, {
+    'content-type': 'application/vnd.android.package-archive',
+    'content-length': size,
+    'content-disposition': `attachment; filename="${apk}"`,
+  });
+  fs.createReadStream(file).pipe(res);
+}
+
 function serveStatic(req, res, url) {
   const rel = url.pathname === '/' ? 'index.html' : url.pathname.replace(/^\/+/, '');
   const file = path.join(PUBLIC_DIR, rel);
@@ -448,6 +479,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/api') return void handleApi(req, res, url);
   if (url.pathname === '/stream') return void handleStream(req, res, url);
   if (url.pathname === '/probe') return void handleProbe(req, res, url);
+  if (url.pathname === '/apk') return serveApk(req, res);
   if (url.pathname === '/log') return sendJson(res, 200, { lines: recentLog });
   if (url.pathname === '/health') return sendJson(res, 200, { ok: true, version: VERSION });
   return serveStatic(req, res, url);
@@ -495,6 +527,16 @@ function portTaken() {
 
 server.listen(PORT, BIND, () => {
   console.log(`\n  Xtream Web Player running at  http://${BIND}:${PORT}\n`);
+  if (BIND === '0.0.0.0') {
+    const nets = require('os').networkInterfaces();
+    const lan = Object.values(nets).flat().find((n) => n && n.family === 'IPv4' && !n.internal);
+    if (lan) {
+      console.log(`  On your network:              http://${lan.address}:${PORT}`);
+      console.log(`  Sideload URL for Downloader:  http://${lan.address}:${PORT}/apk`);
+      console.log('  (Anyone on this network can reach it - stop the server when done.)');
+    }
+    console.log('');
+  }
   console.log('  Enter your panel URL, username and password in the browser.');
   console.log('  Credentials are never stored on this server.\n');
 });

@@ -60,7 +60,7 @@ class LocalProxyServer(private val assets: AssetManager) : NanoHTTPD("127.0.0.1"
         .replace(Regex("([?&](username|password)=)[^&]*"), "$1***")
         .replace(Regex("/(live|movie|series)/[^/]+/[^/]+/"), "/$1/***/***/")
 
-    /** aurora01.com and cdn5.aurora01.com are the same operator. */
+    /** panel.example.com and cdn5.panel.example.com are the same operator. */
     private fun baseDomain(host: String): String =
         host.split('.').let { if (it.size >= 2) it.takeLast(2).joinToString(".") else host }
 
