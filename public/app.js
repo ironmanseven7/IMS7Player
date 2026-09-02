@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.5.0';
+const CLIENT_VERSION = '1.6.0';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -388,8 +388,8 @@ async function loadSection(section) {
     return;
   }
 
-  $('#cat-list').innerHTML = '<li class="loading">Loading…</li>';
-  $('#item-list').innerHTML = '<li class="loading">Loading…</li>';
+  $('#cat-list').innerHTML = skeletonRows(6);
+  $('#item-list').innerHTML = skeletonRows(9);
 
   try {
     const cats = await api(CAT_ACTION[section]);
@@ -476,9 +476,16 @@ function renderMore() {
     return;
   }
 
+  // Films and series get artwork cards; channels stay a compact list.
+  const grid = usesGrid();
+  ul.classList.toggle('grid', grid);
+  document.body.classList.toggle('grid-mode', grid);   // artwork wants a wider column
+
   const html = slice
     .map((row, i) => {
       const idx = state.shown + i;
+      if (grid) return cardMarkup(row, idx, itemKind(row));
+
       const name = row.name || row.title || 'Untitled';
       const logo = row.stream_icon || row.cover || row.icon || '';
       const kind = itemKind(row);
@@ -513,6 +520,7 @@ function renderMore() {
       ul.querySelectorAll('.item').forEach((x) => x.classList.remove('playing'));
       b.classList.add('playing');
       open(visibleItems()[Number(b.dataset.idx)]);
+      scrollPlayerIntoView();
     });
   });
 }
@@ -674,6 +682,7 @@ function stopPlayback() {
 }
 
 function showMeta({ title, logo, sub }) {
+  setTimeout(syncDetailCollapse, 0);
   $('#now-title').textContent = title || 'Nothing playing';
   $('#now-sub').textContent = sub || '';
   const img = $('#now-logo');
@@ -889,6 +898,7 @@ async function checkServerVersion() {
 }
 
 (function boot() {
+  detectPlatform();
   checkServerVersion();
   $('#buffer-mode').value = localStorage.getItem(BUFFER_KEY) || 'smooth';
   startStatsReadout();
@@ -1002,12 +1012,20 @@ function currentPaneIndex() {
   return -1;
 }
 
+/** Focus an element and mark it, so the highlight never depends on :focus alone. */
+function focusEl(el) {
+  if (!el) return;
+  document.querySelectorAll('.focused').forEach((x) => x.classList.remove('focused'));
+  el.classList.add('focused');
+  el.focus();
+  el.scrollIntoView({ block: 'nearest' });
+}
+
 function focusPane(index) {
   const items = focusablesIn(PANES[index]);
   if (!items.length) return false;
   const target = items.find((el) => el.classList.contains('playing') || el.classList.contains('active')) || items[0];
-  target.focus();
-  target.scrollIntoView({ block: 'nearest' });
+  focusEl(target);
   return true;
 }
 
@@ -1046,8 +1064,7 @@ document.addEventListener('keydown', (e) => {
   const next = items[at + (e.key === 'ArrowDown' ? 1 : -1)];
   if (next) {
     e.preventDefault();
-    next.focus();
-    next.scrollIntoView({ block: 'nearest' });
+    focusEl(next);
     // keep the lazy list filling as focus walks toward the bottom
     if (at > items.length - 5 && !$('#load-more').hidden) renderMore();
   }
@@ -1326,3 +1343,127 @@ function watchForSlowStart() {
       '<br><span class="small">Open Diagnostics in the top bar to see what the panel returned.</span>';
   }, 2000);
 }
+
+/* ── platform shell ───────────────────────────────────────────
+ * Three shells off one document: phone (bottom nav, stacked, sticky player),
+ * TV (10-foot, overscan-safe, focus-driven) and desktop (three panes).
+ */
+
+function detectPlatform() {
+  let tv = false;
+  let nativeApp = false;
+  try {
+    if (window.AndroidPlatform) {
+      nativeApp = true;
+      tv = !!window.AndroidPlatform.isTv();
+    }
+  } catch {
+    /* bridge missing or threw - fall through to sniffing */
+  }
+  if (!nativeApp) {
+    // Fire TV reports AFT*, Shield reports SHIELD; the rest cover other boxes.
+    tv = /AFT[A-Z]|SHIELD|BRAVIA|GoogleTV|Android TV|SmartTV|Web0S|Tizen|CrKey/i.test(navigator.userAgent);
+  }
+
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const shortEdge = Math.min(window.innerWidth, window.innerHeight);
+  const phone = !tv && (coarse || shortEdge < 620) && shortEdge < 820;
+
+  state.platform = tv ? 'tv' : phone ? 'phone' : 'desktop';
+  document.body.classList.toggle('tv', tv);
+  document.body.classList.toggle('phone', phone);
+  document.body.classList.toggle('desktop', !tv && !phone);
+  document.body.classList.toggle('native', nativeApp);
+}
+
+window.addEventListener('resize', () => {
+  const before = state.platform;
+  detectPlatform();
+  if (before !== state.platform) resetList(); // card size depends on the shell
+});
+
+/* ── on-demand poster grid ────────────────────────────────────
+ * Channel logos are small and wide, so live stays a list. Films and series
+ * have real artwork, which is the difference between this looking like a
+ * directory listing and looking like an app.
+ */
+
+function usesGrid() {
+  if (state.section === 'movie' || state.section === 'series') return true;
+  if (state.section === 'favorites') {
+    return favs.read().some((f) => f.kind === 'movie' || f.kind === 'series');
+  }
+  return false;
+}
+
+function cardMarkup(row, idx, kind) {
+  const name = row.name || row.title || 'Untitled';
+  const art = row.cover || row.stream_icon || row.icon || '';
+  const meta = [row.year, row.rating ? `★ ${row.rating}` : ''].filter(Boolean).join(' · ');
+
+  const seen = kind === 'movie' ? resume.get('movie', row.stream_id || row.id) : null;
+  const progress = seen && seen.duration
+    ? `<span class="card-progress"><i style="width:${Math.min(100, (seen.position / seen.duration) * 100).toFixed(0)}%"></i></span>`
+    : '';
+
+  return `<li>
+    <button class="item card" data-idx="${idx}">
+      <span class="card-art">
+        ${art ? `<img loading="lazy" src="${esc(art)}" alt="" onerror="this.closest('.card-art').classList.add('noart')" />` : ''}
+        <span class="card-fallback">${esc(name.slice(0, 2).toUpperCase())}</span>
+        ${progress}
+      </span>
+      <span class="card-title">${esc(name)}</span>
+      ${meta ? `<span class="card-meta">${esc(meta)}</span>` : ''}
+    </button></li>`;
+}
+
+/* ── phone: collapsible detail ────────────────────────────────
+ * EPG text and plots would push the channel list off a phone screen, so they
+ * fold away. Episodes are the exception - that list is the point of opening
+ * a series.
+ */
+
+function syncDetailCollapse() {
+  const detail = $('#now-detail');
+  if (state.platform !== 'phone') {
+    detail.classList.remove('collapsed');
+    $('#now-head-toggle')?.setAttribute('hidden', '');
+    return;
+  }
+  const isSeries = state.now?.kind === 'series' || detail.querySelector('.season');
+  detail.classList.toggle('collapsed', !isSeries);
+  $('#now-head-toggle')?.removeAttribute('hidden');
+}
+
+$('.now-head').addEventListener('click', (e) => {
+  if (state.platform !== 'phone') return;
+  if (e.target.closest('button')) return;   // let the fav / copy buttons work
+  $('#now-detail').classList.toggle('collapsed');
+});
+
+/* Keep the player in view when something starts on a phone. */
+function scrollPlayerIntoView() {
+  if (state.platform !== 'phone') return;
+  $('.stage')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/** Shimmer placeholders read as "loading" far better than the word does. */
+function skeletonRows(n) {
+  return Array.from({ length: n }, () =>
+    '<li class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span></li>'
+  ).join('');
+}
+
+/**
+ * Mirror focus onto a class. Some TV WebViews are unreliable about :focus
+ * styling, and the highlight is the only way to know where you are on a remote,
+ * so it must not depend solely on the pseudo-class.
+ */
+document.addEventListener('focusin', (e) => {
+  document.querySelectorAll('.focused').forEach((el) => el.classList.remove('focused'));
+  if (e.target && e.target !== document.body) e.target.classList.add('focused');
+});
+document.addEventListener('focusout', (e) => {
+  e.target?.classList?.remove('focused');
+});

@@ -101,6 +101,34 @@ Other things that reduce stalling, already applied:
 If a channel still stutters on Smooth, the bottleneck is upstream of this player — your line's
 bandwidth or that channel's source. Compare with the same channel in VLC via **Copy direct URL**.
 
+## Three shells, one document
+
+The app detects what it is running on and switches layout accordingly. In the APK the answer
+comes from `PlatformBridge.kt` (`UiModeManager`, leanback feature, touchscreen absence) rather
+than the user agent, because a Fire TV stick reports a fairly ordinary Android UA. In a plain
+browser it falls back to UA matching plus pointer/size checks.
+
+**Phone** — a bottom navigation bar with icons, the player sticky at the top of the scroll,
+categories as a horizontal chip strip instead of a pane, larger rows and touch targets, and
+safe-area padding for notches and gesture bars. Choosing something scrolls the player into
+view. EPG text and plots fold away so they cannot push the list off screen; episode lists stay
+open, since that is the reason you opened a series.
+
+**TV (Fire TV, Shield, Android TV)** — larger type throughout, overscan-safe padding, and
+proportional columns so the player cannot be squeezed out on a 720p panel. Focus is the whole
+interface on a remote, so it is loud: a 3 px accent outline, a lift in background, and a slight
+scale. The highlight is driven by a class as well as `:focus`, because some TV WebViews are
+unreliable about the pseudo-class.
+
+**Desktop** — the three-pane layout, unchanged apart from the shared polish.
+
+Films and series now render as artwork cards rather than list rows, with a 2:3 poster, a
+two-line title, and a progress bar for part-watched films. Titles with no artwork get their
+initials on a gradient instead of a broken image. Channels stay a list — channel logos are
+small and wide, and a grid of them reads worse than rows. The middle column widens
+automatically when artwork is showing. Loading states are shimmer placeholders rather than the
+word "Loading".
+
 ## Voice, remote and resume
 
 **Voice.** The mic button in the top bar, or the **V** key. In the Android app it drives the
@@ -178,8 +206,7 @@ the phone, or `adb install app-debug.apk`.
 ### Limits
 
 - Debug signing means Android shows an "unknown developer" warning on install.
-- D-pad navigation and voice work on Android TV. The layout is still a three-pane desktop
-  design, so a 10-foot UI it is not, but it is drivable from a remote.
+- Phone, TV and desktop each get their own layout; see "Three shells, one document" above.
 - MKV/AVI movies fail in a WebView exactly as they do in a desktop browser — the container is
   the limit, not the player.
 

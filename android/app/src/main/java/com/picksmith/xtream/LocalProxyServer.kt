@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
 class LocalProxyServer(private val assets: AssetManager) : NanoHTTPD("127.0.0.1", 0) {
 
     companion object {
-        const val VERSION = "1.5.0"
+        const val VERSION = "1.6.0"
         private val PANEL_STATUS_HINTS = mapOf(
             511 to "The panel wants credentials it did not get (HTTP 511). Check the username and password.",
             512 to "The panel rejected this line (HTTP 512). Usually a wrong username/password, an expired " +

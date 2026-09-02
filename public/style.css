@@ -373,7 +373,8 @@ button, input, select { font: inherit; color: inherit; }
 /* ── remote / D-pad focus ───────────────────────────────────
    A TV remote gives no hover, so focus has to be unmistakable. */
 :focus-visible,
-.item:focus, .cat:focus, .tab:focus, .ghost:focus, .episode:focus, .probe-hit:focus {
+.item:focus, .cat:focus, .tab:focus, .ghost:focus, .episode:focus, .probe-hit:focus,
+.item.focused, .cat.focused, .tab.focused, .ghost.focused, .episode.focused {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
   background: var(--accent-dim);
@@ -456,3 +457,308 @@ button, input, select { font: inherit; color: inherit; }
 }
 .diag-line { color: var(--muted); word-break: break-all; }
 .diag-line.bad { color: var(--danger); }
+
+/* ═══════════════════════════════════════════════════════════
+   App feel, then three shells: phone, TV, desktop.
+   ═══════════════════════════════════════════════════════════ */
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button, .item, .cat, .tab, .card, .now-head {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.list { -webkit-overflow-scrolling: touch; }
+.item, .cat, .card-art, .tab, .ghost {
+  transition: background .15s ease, transform .15s ease, border-color .15s ease;
+}
+
+/* Tab icons — stroked, so they inherit colour from the button. */
+.tab { display: flex; align-items: center; gap: 8px; }
+.tab-ico {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── artwork cards for films and series ──────────────────── */
+.list.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: 14px;
+  align-content: start;
+  padding: 14px;
+}
+.list.grid li { display: block; }
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.card-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(160deg, #1d2634, #0f151e);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+}
+.card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.card-art.noart img { display: none; }
+.card-fallback {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  color: #3d4b5f;
+}
+.card-art.noart .card-fallback { display: grid; }
+.card-art:not(:has(img)) .card-fallback { display: grid; }
+
+.card-title {
+  font-size: 13px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-meta { font-size: 11px; color: var(--muted); }
+.card-progress {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 3px;
+  background: rgba(0, 0, 0, .55);
+}
+.card-progress i { display: block; height: 100%; background: var(--accent); }
+
+.card:hover .card-art { transform: translateY(-2px); }
+.card.playing .card-art { outline: 2px solid var(--accent); outline-offset: -2px; }
+.card:focus { outline: none; }
+.card:focus .card-art, .card.focused .card-art { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* ── loading skeletons ───────────────────────────────────── */
+.skeleton {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #161d28 25%, #1e2733 37%, #161d28 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+.skeleton-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; }
+.skeleton-row .skeleton:first-child { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 6px; }
+.skeleton-row .skeleton:last-child { height: 11px; flex: 1 1 auto; }
+
+/* ═══════════════ PHONE ═══════════════════════════════════ */
+
+body.phone .topbar {
+  gap: 10px;
+  padding: 10px 12px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+}
+body.phone .brand { font-size: 15px; }
+body.phone .acct { gap: 6px; }
+body.phone #acct-info { display: none; }
+body.phone .buffer-pick { font-size: 0; gap: 0; }        /* keep the control, drop the label */
+body.phone .buffer-pick select { font-size: 12px; max-width: 104px; }
+body.phone #diag, body.phone #logout { padding: 6px 9px; font-size: 12px; }
+body.phone #mic-label { display: none; }
+body.phone .mic { padding: 7px 10px; }
+
+/* Tabs become a real bottom navigation bar. */
+body.phone .tabs {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 70;
+  display: flex;
+  justify-content: space-around;
+  gap: 0;
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  background: rgba(18, 24, 33, .97);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+}
+body.phone .tab {
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 0;
+  border-radius: 10px;
+  font-size: 10px;
+  letter-spacing: .01em;
+}
+body.phone .tab-ico { width: 22px; height: 22px; }
+body.phone .tab.active {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent);
+}
+
+/* Stack: player, category chips, then the list. */
+body.phone .layout {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 62px;
+}
+body.phone .pane { border-right: 0; }
+body.phone .stage {
+  order: 0;
+  flex: 0 0 auto;
+  overflow: visible;
+  border-bottom: 1px solid var(--line);
+}
+body.phone .video-shell {
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .5);
+}
+body.phone .now { padding: 10px 12px; }
+body.phone .now-head { gap: 10px; }
+body.phone .now-head img { width: 36px; height: 36px; }
+body.phone .now-head h2 { font-size: 15px; }
+body.phone .now-actions { gap: 6px; }
+body.phone .now-actions .ghost { padding: 6px 10px; font-size: 12px; }
+body.phone #now-detail {
+  max-height: 42vh;
+  overflow-y: auto;
+  transition: max-height .25s ease, opacity .2s ease;
+}
+body.phone #now-detail.collapsed {
+  max-height: 0;
+  margin: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+body.phone .categories { order: 1; flex: 0 0 auto; border-bottom: 1px solid var(--line); }
+body.phone .categories .pane-head { display: none; }
+body.phone #cat-list {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 10px 12px;
+  scrollbar-width: none;
+}
+body.phone #cat-list::-webkit-scrollbar { display: none; }
+body.phone #cat-list li { flex: 0 0 auto; }
+body.phone .cat {
+  width: auto;
+  padding: 8px 15px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+  font-size: 13px;
+}
+body.phone .cat.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06101f;
+  font-weight: 600;
+}
+
+body.phone .items { order: 2; flex: 1 1 auto; min-height: 45vh; }
+body.phone .items .pane-head { padding: 10px 12px; }
+body.phone .pane-head input { padding: 10px 12px; border-radius: 10px; font-size: 15px; }
+body.phone #item-list { padding: 10px 12px 24px; }
+body.phone .item { padding: 10px; border-radius: 12px; gap: 12px; }
+body.phone .item:active { background: var(--panel-2); transform: scale(.99); }
+body.phone .item img, body.phone .item .ph { width: 46px; height: 46px; border-radius: 8px; }
+body.phone .item-name { font-size: 15px; }
+body.phone .item-meta { font-size: 12px; }
+body.phone .list.grid { grid-template-columns: repeat(3, 1fr); gap: 11px; padding: 12px; }
+body.phone .card-title { font-size: 12px; }
+
+body.phone .login-wrap { padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); }
+body.phone .login-card { padding: 22px 18px; }
+body.phone .login-card input, body.phone .login-card select { padding: 12px; font-size: 16px; }
+body.phone .voice-hud { bottom: 84px; }
+body.phone .toast { bottom: 78px; }
+body.phone .diag-panel { inset: 5% 4% calc(5% + 56px); }
+
+/* ═══════════════ TV (Fire TV, Shield, Android TV) ═════════ */
+
+body.tv { font-size: 17px; }
+/* TVs crop the edges of the picture; keep everything inside the safe area. */
+body.tv .topbar { padding: 20px 44px; gap: 26px; }
+body.tv .layout {
+  padding: 0 36px 28px;
+  /* Proportional, not fixed: fixed columns plus overscan padding can add up to
+     more than a 720p panel is wide and squeeze the player to nothing. */
+  grid-template-columns: minmax(190px, 19%) minmax(250px, 26%) minmax(320px, 1fr);
+}
+body.tv .brand { font-size: 21px; }
+body.tv .tab { padding: 10px 20px; font-size: 17px; }
+body.tv .tab-ico { width: 20px; height: 20px; }
+
+body.tv .pane-head input { padding: 11px 14px; font-size: 16px; }
+body.tv .cat { padding: 12px 16px; font-size: 16px; border-radius: 10px; }
+body.tv .item { padding: 13px 14px; border-radius: 12px; }
+body.tv .item img, body.tv .item .ph { width: 50px; height: 50px; flex: 0 0 50px; border-radius: 8px; }
+body.tv .item-name { font-size: 17px; }
+body.tv .item-meta { font-size: 13px; }
+body.tv .list.grid { grid-template-columns: repeat(auto-fill, minmax(186px, 1fr)); gap: 20px; }
+body.tv .card-title { font-size: 15px; }
+body.tv .card-meta { font-size: 13px; }
+body.tv .now-head h2 { font-size: 22px; }
+body.tv .stats { font-size: 13px; bottom: 54px; }
+
+/* On a remote there is no cursor, so focus has to be loud. */
+body.tv .item:focus, body.tv .item.focused,
+body.tv .cat:focus, body.tv .cat.focused,
+body.tv .tab:focus, body.tv .tab.focused,
+body.tv .ghost:focus, body.tv .ghost.focused,
+body.tv .episode:focus, body.tv .episode.focused,
+body.tv select:focus, body.tv select.focused {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  background: var(--accent-dim);
+  transform: scale(1.02);
+}
+body.tv .card:focus .card-art, body.tv .card.focused .card-art {
+  outline: 4px solid var(--accent);
+  outline-offset: 3px;
+  transform: scale(1.06);
+}
+body.tv .item:hover, body.tv .cat:hover { background: transparent; }  /* no pointer on a TV */
+body.tv .voice-hud { font-size: 18px; bottom: 8%; }
+body.tv .diag-panel { inset: 6% 5%; }
+body.tv .diag-body { font-size: 14px; }
+
+/* ═══════════════ DESKTOP polish ══════════════════════════ */
+
+body.desktop .item:hover { transform: translateX(2px); }
+body.desktop .topbar { gap: 18px; }
+
+/* Artwork browsing earns a wider middle column than a channel list needs. */
+body.desktop.grid-mode .layout { grid-template-columns: 220px minmax(340px, 38%) 1fr; }
+body.tv.grid-mode .layout { grid-template-columns: minmax(180px, 17%) minmax(420px, 40%) minmax(300px, 1fr); }

@@ -46,6 +46,7 @@ class MainActivity : Activity() {
         val bridge = VoiceBridge(this, webView)
         voiceBridge = bridge
         webView.addJavascriptInterface(bridge, "AndroidVoice")
+        webView.addJavascriptInterface(PlatformBridge(this), "AndroidPlatform")
 
         setContentView(webView)
 
