@@ -211,6 +211,23 @@ Downloader.) Without this, Downloader fetches the file and the install is refuse
 
 Then pick one of these.
 
+### The URL to type into Downloader
+
+```
+github.com/ironmanseven7/IMS7Player/releases/latest/download/app-debug.apk
+```
+
+That address is stable — every build replaces the file behind it, so re-running the same
+download is how you update. Downloader keeps it in its history, so you only type it once.
+
+A release must **not** be marked as a prerelease for this to work: GitHub excludes prereleases
+from `/releases/latest/`, and the URL 404s even though the release and its asset exist. The
+tag-addressed form `…/releases/download/latest/app-debug.apk` works either way.
+
+For a shorter address to type on a remote, enable GitHub Pages (**Settings → Pages → Source:
+deploy from branch, `main`, folder `/docs`**). Then `ironmanseven7.github.io/IMS7Player`
+forwards to the current APK.
+
 ### Option A — public repo, permanent URL (easiest to live with)
 
 If the repository is public, the release asset is a plain public download and this URL never
