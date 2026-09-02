@@ -102,7 +102,7 @@
 
     <section class="pane stage">
       <div class="video-shell">
-        <video id="video" controls playsinline preload="none"></video>
+        <video id="video" controls playsinline preload="none" tabindex="0"></video>
         <div id="video-overlay" class="overlay">Pick something on the left to start watching.</div>
         <div id="stats" class="stats" hidden></div>
       </div>
@@ -115,6 +115,7 @@
             <div id="now-sub" class="muted small"></div>
           </div>
           <div class="now-actions">
+            <button id="fullscreen" class="ghost">⤢ Full screen</button>
             <button id="fav-toggle" class="ghost" hidden>☆ Favourite</button>
             <button id="copy-url" class="ghost" hidden>Copy direct URL</button>
           </div>

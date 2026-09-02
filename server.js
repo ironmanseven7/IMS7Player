@@ -22,7 +22,7 @@ const { URL } = require('url');
 // Bump together with CLIENT_VERSION in public/app.js whenever routes change.
 // The page is served fresh from disk on every request, so a long-running process
 // can end up older than the page it is serving; the app compares these and says so.
-const VERSION = '1.6.0';
+const VERSION = '1.7.0';
 
 const PORT = Number(process.env.PORT) || 8787;
 const BIND = process.env.BIND || '127.0.0.1';

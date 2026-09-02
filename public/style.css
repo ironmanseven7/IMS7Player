@@ -762,3 +762,34 @@ body.desktop .topbar { gap: 18px; }
 /* Artwork browsing earns a wider middle column than a channel list needs. */
 body.desktop.grid-mode .layout { grid-template-columns: 220px minmax(340px, 38%) 1fr; }
 body.tv.grid-mode .layout { grid-template-columns: minmax(180px, 17%) minmax(420px, 40%) minmax(300px, 1fr); }
+
+/* ── full screen ────────────────────────────────────────────
+   The video fills the window and everything else steps aside. Not the
+   Fullscreen API: a TV WebView may not implement it, but this always works. */
+body.video-full .topbar,
+body.video-full .categories,
+body.video-full .items,
+body.video-full .now { display: none !important; }
+
+body.video-full .layout { grid-template-columns: 1fr; padding: 0; }
+body.video-full .stage { border: 0; overflow: hidden; }
+body.video-full .video-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  aspect-ratio: auto;
+  box-shadow: none;
+}
+body.video-full #video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+body.video-full .stats { bottom: 18px; right: 18px; }
+
+/* The player is a focus target in its own right, so OK can act on it. */
+#video:focus, #video.focused {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}

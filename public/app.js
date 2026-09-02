@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.6.0';
+const CLIENT_VERSION = '1.7.0';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -1033,29 +1033,92 @@ function focusPane(index) {
  * Arrow keys move within a pane, left/right cross between panes. Enter is left
  * to the browser, which already activates a focused button.
  */
+/** Remembers which column to drop back into when leaving the top bar. */
+let lastPane = 1;
+
+function inTopbar() {
+  return !!document.activeElement && $('.topbar').contains(document.activeElement);
+}
+
+function focusTopbar(preferEnd) {
+  const items = focusablesIn('.topbar');
+  if (!items.length) return false;
+  focusEl(preferEnd ? items[items.length - 1] : items[0]);
+  return true;
+}
+
 document.addEventListener('keydown', (e) => {
   if ($('#app').hidden) return;
   const tag = document.activeElement?.tagName;
-  const typing = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+  const typing = tag === 'INPUT' || tag === 'TEXTAREA';
+  const onSelect = tag === 'SELECT';
 
   if ((e.key === 'v' || e.key === 'V') && !typing) {
     e.preventDefault();
     voice.toggle();
     return;
   }
+
+  // OK / Enter on the player toggles full screen - the native video controls
+  // are effectively unusable from a remote.
+  if ((e.key === 'Enter' || e.key === ' ') && document.activeElement === $('#video')) {
+    e.preventDefault();
+    toggleVideoFull();
+    return;
+  }
+  if (e.key === 'Escape' && document.body.classList.contains('video-full')) {
+    e.preventDefault();
+    setVideoFull(false);
+    return;
+  }
+
   if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
   if (typing && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return; // let the caret move
+  // A dropdown needs up/down for its own options.
+  if (onSelect && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
+
+  // In full screen the panes are hidden; only leaving it makes sense.
+  if (document.body.classList.contains('video-full')) {
+    e.preventDefault();
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') setVideoFull(false);
+    return;
+  }
+
+  // ── the top bar is a row of its own, above the three columns ──
+  if (inTopbar()) {
+    const items = focusablesIn('.topbar');
+    const at = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      focusPane(lastPane);
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      return;                            // already at the top
+    }
+    const next = items[at + (e.key === 'ArrowRight' ? 1 : -1)];
+    if (next) {
+      e.preventDefault();
+      focusEl(next);
+    }
+    return;
+  }
 
   const pane = currentPaneIndex();
   if (pane === -1) {
     e.preventDefault();
-    focusPane(1);
+    focusPane(lastPane);
     return;
   }
+  lastPane = pane;
 
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     const next = pane + (e.key === 'ArrowRight' ? 1 : -1);
-    if (next >= 0 && next < PANES.length && focusPane(next)) e.preventDefault();
+    if (next >= 0 && next < PANES.length && focusPane(next)) {
+      lastPane = next;
+      e.preventDefault();
+    }
     return;
   }
 
@@ -1067,6 +1130,13 @@ document.addEventListener('keydown', (e) => {
     focusEl(next);
     // keep the lazy list filling as focus walks toward the bottom
     if (at > items.length - 5 && !$('#load-more').hidden) renderMore();
+    return;
+  }
+
+  // Nothing above in this column: step up into the top bar.
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    focusTopbar(false);
   }
 });
 
@@ -1315,7 +1385,7 @@ async function showDiagnostics() {
 
   panel.innerHTML =
     `<div class="diag-head"><b>Diagnostics</b>
-       <span class="muted small">player ${esc(health.version || '?')} · page ${esc(CLIENT_VERSION)}</span>
+       <span class="muted small">player ${esc(health.version || '?')} · page ${esc(CLIENT_VERSION)} · ${esc(state.platform || '?')}${window.AndroidPlatform ? ' (app)' : ''}</span>
        <button id="diag-close" class="ghost">Close</button></div>
      <div class="diag-body">${body}</div>`;
   $('#diag-close').addEventListener('click', () => (panel.hidden = true));
@@ -1467,3 +1537,39 @@ document.addEventListener('focusin', (e) => {
 document.addEventListener('focusout', (e) => {
   e.target?.classList?.remove('focused');
 });
+
+/* ── full screen ──────────────────────────────────────────────
+ * Deliberately CSS-driven rather than the Fullscreen API. In a TV WebView
+ * requestFullscreen depends on the host app implementing onShowCustomView and
+ * on a gesture the remote may not produce; expanding the video to fill the
+ * window always works. A history entry is pushed so the remote's Back button
+ * leaves full screen instead of leaving the app.
+ */
+
+function setVideoFull(on) {
+  const already = document.body.classList.contains('video-full');
+  if (on === already) return;
+  document.body.classList.toggle('video-full', on);
+
+  if (on) {
+    history.pushState({ videoFull: true }, '');
+    $('#video').focus();
+  } else if (history.state && history.state.videoFull) {
+    history.back();                 // popstate clears the class
+  }
+  $('#fullscreen').textContent = on ? '⤡ Exit full screen' : '⤢ Full screen';
+}
+
+function toggleVideoFull() {
+  setVideoFull(!document.body.classList.contains('video-full'));
+}
+
+window.addEventListener('popstate', () => {
+  document.body.classList.remove('video-full');
+  $('#fullscreen').textContent = '⤢ Full screen';
+});
+
+$('#fullscreen').addEventListener('click', toggleVideoFull);
+
+// Double-click / double-tap the picture, as in any other player.
+$('#video').addEventListener('dblclick', toggleVideoFull);
