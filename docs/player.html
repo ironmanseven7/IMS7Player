@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Xtream Player — run it on your computer</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 20px 64px;
+    background: #0d1117;
+    color: #e6edf3;
+    font: 16px/1.65 system-ui, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 30px; margin: 0 0 6px; }
+  h1 span { color: #4c9aff; }
+  .sub { color: #8b98a8; margin: 0 0 30px; }
+
+  ol { list-style: none; counter-reset: step; margin: 0; padding: 0; }
+  ol li {
+    counter-increment: step;
+    position: relative;
+    padding: 0 0 26px 52px;
+    border-left: 2px solid #242c38;
+    margin-left: 15px;
+  }
+  ol li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  ol li::before {
+    content: counter(step);
+    position: absolute;
+    left: -16px;
+    top: -2px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #4c9aff;
+    color: #06101f;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+  }
+  ol li h2 { font-size: 18px; margin: 2px 0 6px; }
+  ol li p { margin: 0 0 10px; color: #c3ccd8; }
+
+  a.btn {
+    display: inline-block;
+    padding: 11px 20px;
+    background: #4c9aff;
+    color: #06101f;
+    font-weight: 600;
+    border-radius: 9px;
+    text-decoration: none;
+  }
+  a.btn.alt { background: transparent; border: 1px solid #2f3a48; color: #e6edf3; }
+  a { color: #4c9aff; }
+
+  code {
+    background: #161d28;
+    border: 1px solid #242c38;
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-family: Consolas, "SF Mono", monospace;
+    font-size: 14px;
+  }
+  pre {
+    background: #161d28;
+    border: 1px solid #242c38;
+    border-radius: 9px;
+    padding: 13px 15px;
+    overflow-x: auto;
+    font-family: Consolas, "SF Mono", monospace;
+    font-size: 14px;
+    margin: 0 0 10px;
+  }
+  .note {
+    margin-top: 34px;
+    padding: 15px 18px;
+    background: #141a23;
+    border: 1px solid #242c38;
+    border-left: 4px solid #4c9aff;
+    border-radius: 9px;
+    font-size: 14px;
+    color: #c3ccd8;
+  }
+  .note b { color: #e6edf3; }
+  footer { margin-top: 30px; font-size: 13px; color: #8b98a8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Xtream<span>Player</span></h1>
+  <p class="sub">A browser player for your own IPTV subscription. Live TV, films,
+    series, guide and favourites.</p>
+
+  <ol>
+    <li>
+      <h2>Install Node.js</h2>
+      <p>Pick the <b>LTS</b> version. It is what runs the player.</p>
+      <a class="btn alt" href="https://nodejs.org">Get Node.js</a>
+    </li>
+
+    <li>
+      <h2>Download the player</h2>
+      <p>Unzip it anywhere — your Desktop is fine.</p>
+      <a class="btn" href="https://github.com/ironmanseven7/IMS7Player/archive/refs/heads/main.zip">Download (about 0.5 MB)</a>
+    </li>
+
+    <li>
+      <h2>Start it</h2>
+      <p><b>Windows:</b> double-click <code>Start Player.bat</code> in the unzipped folder.</p>
+      <p><b>Mac or Linux:</b> open Terminal in that folder and run:</p>
+      <pre>node server.js</pre>
+      <p>Your browser opens at <code>http://127.0.0.1:8787</code>.</p>
+    </li>
+
+    <li>
+      <h2>Sign in with your own subscription</h2>
+      <p>Enter the server address, username and password from your IPTV provider.</p>
+      <p>Easiest way: paste your provider's whole <b>M3U link</b> into the Server URL
+        box — it fills in all three fields for you.</p>
+    </li>
+  </ol>
+
+  <div class="note">
+    <b>Why does it need to run on your computer?</b><br />
+    IPTV panels don't send the headers a browser needs to talk to them directly, so a
+    small local relay does it instead. It runs only on your own machine, on
+    <code>127.0.0.1</code>, and your credentials are never sent anywhere except to your
+    own provider.
+  </div>
+
+  <div class="note">
+    <b>Watching on Android instead?</b><br />
+    There is an app version that needs no computer —
+    <a href="https://github.com/ironmanseven7/IMS7Player/releases/latest/download/app-debug.apk">download the APK</a>.
+  </div>
+
+  <footer>
+    Source and full documentation:
+    <a href="https://github.com/ironmanseven7/IMS7Player">github.com/ironmanseven7/IMS7Player</a>
+  </footer>
+</div>
+</body>
+</html>
