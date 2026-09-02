@@ -13,8 +13,8 @@ android {
         // and every current Android TV box.
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.4.0"
+        versionCode = 2
+        versionName = "1.5.0"
     }
 
     buildTypes {

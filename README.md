@@ -185,8 +185,10 @@ the phone, or `adb install app-debug.apk`.
 
 ## Troubleshooting
 
-Every request is logged to the terminal running `server.js`, with the username and password
-redacted — status code, timing and response size. Start there.
+Every request is logged with the username and password redacted — status code, timing and
+response size. On desktop it prints to the terminal running `server.js`; in the Android app,
+and also on desktop, the **Diagnostics** button in the top bar shows the same log (served from
+`/log`). A live stream that has not started after 12 seconds says so and points you there.
 
 | Symptom | Cause |
 | --- | --- |

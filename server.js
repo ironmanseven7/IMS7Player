@@ -22,7 +22,7 @@ const { URL } = require('url');
 // Bump together with CLIENT_VERSION in public/app.js whenever routes change.
 // The page is served fresh from disk on every request, so a long-running process
 // can end up older than the page it is serving; the app compares these and says so.
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 
 const PORT = Number(process.env.PORT) || 8787;
 const BIND = process.env.BIND || '127.0.0.1';
@@ -42,8 +42,15 @@ const PANEL_STATUS_HINTS = {
   521: 'The panel is blocking this IP or device (HTTP 521).',
 };
 
+// Kept in memory as well as printed so /log can serve it. The Android build has
+// no terminal to read, and both servers answer the same diagnostics route.
+const recentLog = [];
+
 function logLine(msg) {
-  console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
+  const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  console.log(line);
+  recentLog.push(line);
+  if (recentLog.length > 120) recentLog.shift();
 }
 
 /** Strip credentials before anything reaches the console. */
@@ -441,6 +448,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/api') return void handleApi(req, res, url);
   if (url.pathname === '/stream') return void handleStream(req, res, url);
   if (url.pathname === '/probe') return void handleProbe(req, res, url);
+  if (url.pathname === '/log') return sendJson(res, 200, { lines: recentLog });
   if (url.pathname === '/health') return sendJson(res, 200, { ok: true, version: VERSION });
   return serveStatic(req, res, url);
 });

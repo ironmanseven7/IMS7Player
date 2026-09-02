@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
 class LocalProxyServer(private val assets: AssetManager) : NanoHTTPD("127.0.0.1", 0) {
 
     companion object {
-        const val VERSION = "1.3.0"
+        const val VERSION = "1.5.0"
         private val PANEL_STATUS_HINTS = mapOf(
             511 to "The panel wants credentials it did not get (HTTP 511). Check the username and password.",
             512 to "The panel rejected this line (HTTP 512). Usually a wrong username/password, an expired " +
@@ -42,6 +42,36 @@ class LocalProxyServer(private val assets: AssetManager) : NanoHTTPD("127.0.0.1"
 
     /** Hosts seen in a successful API call; /stream relays to these only. */
     private val knownHosts = mutableSetOf<String>()
+
+    /** Last 120 proxy events, readable from /log - there is no terminal on a phone. */
+    private val recentLog = ArrayDeque<String>()
+
+    private fun logLine(msg: String) {
+        val line = "${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())}  $msg"
+        android.util.Log.i("XtreamPlayer", line)
+        synchronized(recentLog) {
+            recentLog.addLast(line)
+            while (recentLog.size > 120) recentLog.removeFirst()
+        }
+    }
+
+    /** Credentials must never reach a log line or the diagnostics screen. */
+    private fun redact(url: String): String = url
+        .replace(Regex("([?&](username|password)=)[^&]*"), "$1***")
+        .replace(Regex("/(live|movie|series)/[^/]+/[^/]+/"), "/$1/***/***/")
+
+    /** aurora01.com and cdn5.aurora01.com are the same operator. */
+    private fun baseDomain(host: String): String =
+        host.split('.').let { if (it.size >= 2) it.takeLast(2).joinToString(".") else host }
+
+    /**
+     * Panels redirect streams to load balancers on sibling hosts, so an exact
+     * match on the login host would block every segment. Accept the same base
+     * domain, plus any host a permitted request actually redirected to.
+     */
+    private fun hostAllowed(host: String): Boolean = synchronized(knownHosts) {
+        knownHosts.any { it == host || baseDomain(it).equals(baseDomain(host), ignoreCase = true) }
+    }
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -67,6 +97,8 @@ class LocalProxyServer(private val assets: AssetManager) : NanoHTTPD("127.0.0.1"
     override fun serve(session: IHTTPSession): Response = try {
         when (session.uri) {
             "/health" -> json(200, JSONObject().put("ok", true).put("version", VERSION))
+            "/log" -> json(200, JSONObject().put("lines",
+                org.json.JSONArray(synchronized(recentLog) { recentLog.toList() })))
             "/api" -> handleApi(session)
             "/stream" -> handleStream(session)
             "/probe" -> handleProbe(session)
@@ -140,9 +172,11 @@ class LocalProxyServer(private val assets: AssetManager) : NanoHTTPD("127.0.0.1"
                         "API data - this is probably the customer portal rather than the API host."
                     else -> "HTTP ${it.code}: ${body.take(300)}"
                 }
+                logLine("API " + it.code + " no-api " + redact(url.toString()))
                 return error(502, "The panel did not return player API data", hint)
             }
             synchronized(knownHosts) { knownHosts.add(URI(origin).host) }
+            logLine("API " + it.code + " " + body.length + "B " + redact(url.toString()))
             return newFixedLengthResponse(status(it.code), "application/json", body)
                 .apply { addHeader("Cache-Control", "no-store") }
         }
@@ -157,16 +191,25 @@ class LocalProxyServer(private val assets: AssetManager) : NanoHTTPD("127.0.0.1"
         } catch (e: Exception) {
             return error(400, "Bad stream URL")
         }
-        val allowed = synchronized(knownHosts) { knownHosts.contains(host) }
-        if (!allowed) return error(403, "Not a panel this app is signed into")
+        if (!hostAllowed(host)) {
+            logLine("PLAY 403 blocked host $host")
+            return error(403, "Not a panel this app is signed into")
+        }
 
         val resp = try {
             request(target, session.headers["range"])
         } catch (e: Exception) {
+            logLine("PLAY FAIL ${redact(target)} - ${e.message}")
             return error(502, "Upstream request failed", e.message ?: e.toString())
         }
 
         val finalUrl = resp.request.url.toString()
+        // A permitted request that redirected vouches for wherever it landed;
+        // segment URIs are resolved against that host next.
+        synchronized(knownHosts) { knownHosts.add(resp.request.url.host) }
+        if (session.headers["range"] == null) {
+            logLine("PLAY ${resp.code} ${redact(finalUrl)}")
+        }
         val ctype = resp.header("Content-Type").orEmpty()
         val isManifest = ctype.contains("mpegurl", true) || finalUrl.substringBefore('?').endsWith(".m3u8", true)
 

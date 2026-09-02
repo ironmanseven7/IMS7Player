@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.4.0';
+const CLIENT_VERSION = '1.5.0';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -715,7 +715,7 @@ function play(kind, id, ext, meta = {}) {
   const url = directUrl(kind, id, ext);
   const src = proxied(url);
 
-  state.now = { kind, id, ext, url, meta };
+  state.now = { kind, id, ext, url, meta, startedAt: Date.now() };
   state.stalls = 0;
   state.started = false;
   showMeta(meta);
@@ -893,6 +893,7 @@ async function checkServerVersion() {
   $('#buffer-mode').value = localStorage.getItem(BUFFER_KEY) || 'smooth';
   startStatsReadout();
   startResumeTracking();
+  watchForSlowStart();
   let saved = null;
   try {
     saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
@@ -1266,3 +1267,62 @@ window.onVoiceError = (err) => {
 };
 
 $('#mic').addEventListener('click', () => voice.toggle());
+
+/* ── diagnostics ──────────────────────────────────────────────
+ * On a phone there is no terminal, so the proxy's recent activity has to be
+ * readable inside the app. Credentials are stripped server-side before they
+ * reach this list.
+ */
+
+async function showDiagnostics() {
+  const panel = $('#diag-panel');
+  panel.hidden = false;
+  panel.innerHTML = '<div class="diag-head"><b>Diagnostics</b><button id="diag-close" class="ghost">Close</button></div><div class="loading">Loading…</div>';
+  $('#diag-close').addEventListener('click', () => (panel.hidden = true));
+
+  let lines = [];
+  let health = {};
+  try {
+    health = (await localJson('/health')).data;
+    lines = (await localJson('/log')).data.lines || [];
+  } catch (ex) {
+    lines = [`Could not read the log: ${ex.message || ex}`];
+  }
+
+  const body = lines.length
+    ? lines.slice().reverse().map((l) => {
+        const bad = /403|502|FAIL|blocked|no-api|5\d\d/.test(l);
+        return `<div class="diag-line${bad ? ' bad' : ''}">${esc(l)}</div>`;
+      }).join('')
+    : '<div class="loading">Nothing logged yet. Try playing a channel, then reopen this.</div>';
+
+  panel.innerHTML =
+    `<div class="diag-head"><b>Diagnostics</b>
+       <span class="muted small">player ${esc(health.version || '?')} · page ${esc(CLIENT_VERSION)}</span>
+       <button id="diag-close" class="ghost">Close</button></div>
+     <div class="diag-body">${body}</div>`;
+  $('#diag-close').addEventListener('click', () => (panel.hidden = true));
+}
+
+$('#diag').addEventListener('click', showDiagnostics);
+
+/**
+ * A live stream that never starts otherwise sits on "Connecting…" forever,
+ * because hls.js retries fragments many times before it calls an error fatal.
+ * Say something after 12s and point at the log.
+ */
+function watchForSlowStart() {
+  setInterval(() => {
+    const n = state.now;
+    if (!n || n.kind !== 'live' || state.started) return;
+    if (!n.startedAt || Date.now() - n.startedAt < 12000) return;
+    if (n.warned) return;
+    n.warned = true;
+
+    const overlay = $('#video-overlay');
+    overlay.hidden = false;
+    overlay.innerHTML =
+      '<b>Still connecting</b><br>The playlist loaded but the video segments are not arriving.' +
+      '<br><span class="small">Open Diagnostics in the top bar to see what the panel returned.</span>';
+  }, 2000);
+}
