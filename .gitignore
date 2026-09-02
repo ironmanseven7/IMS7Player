@@ -1,0 +1,17 @@
+# Android build output
+android/build/
+android/.gradle/
+android/app/build/
+android/local.properties
+*.apk
+*.aab
+
+# Generated at build time from public/ - not a second source of truth
+android/app/src/main/assets/
+
+# Node
+node_modules/
+
+# OS
+Thumbs.db
+.DS_Store

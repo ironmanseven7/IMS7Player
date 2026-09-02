@@ -1,0 +1,11 @@
+{
+  "name": "xtream-web-player",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser player for an existing Xtream Codes / player_api server",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

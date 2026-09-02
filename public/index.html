@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Xtream Web Player</title>
+<link rel="stylesheet" href="/style.css" />
+<script src="/vendor/hls.min.js"></script>
+<script src="/vendor/mpegts.js"></script>
+</head>
+<body>
+
+<!-- ── Login ─────────────────────────────────────────────── -->
+<div id="login" class="login-wrap">
+  <form id="login-form" class="login-card">
+    <h1>Xtream Web Player</h1>
+    <p class="muted">Connect to your existing Xtream Codes / player_api panel.</p>
+
+    <label>Server URL <span class="hint-tag">or paste your whole M3U link</span>
+      <input id="f-host" type="text" placeholder="http://your-panel.tld:8080" autocomplete="off" spellcheck="false" required />
+    </label>
+    <label>Username
+      <input id="f-user" type="text" autocomplete="username" spellcheck="false" required />
+    </label>
+    <label>Password
+      <input id="f-pass" type="password" autocomplete="current-password" required />
+    </label>
+
+    <div class="row">
+      <label class="inline">Live format
+        <select id="f-fmt">
+          <option value="m3u8">HLS (.m3u8)</option>
+          <option value="ts">MPEG-TS (.ts)</option>
+        </select>
+      </label>
+      <label class="inline check">
+        <input id="f-remember" type="checkbox" checked /> Remember on this machine
+      </label>
+    </div>
+
+    <button id="login-btn" type="submit">Connect</button>
+    <button id="probe-btn" type="button" class="secondary">Find my server</button>
+    <div id="login-error" class="error" hidden></div>
+    <div id="probe-results" class="probe" hidden></div>
+    <p class="fineprint">Credentials stay in this browser and are sent only to your own panel through the local proxy. "Remember" saves them to this browser's localStorage in plain text.</p>
+  </form>
+</div>
+
+<!-- ── App ───────────────────────────────────────────────── -->
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand">Xtream<span>Player</span></div>
+    <nav class="tabs">
+      <button class="tab active" data-section="live">Live TV</button>
+      <button class="tab" data-section="movie">Movies</button>
+      <button class="tab" data-section="series">Series</button>
+      <button class="tab" data-section="favorites">Favourites</button>
+    </nav>
+    <button id="mic" class="ghost mic" title="Voice command (or press V)">🎤 <span id="mic-label">Voice</span></button>
+    <label class="buffer-pick">Buffering
+      <select id="buffer-mode">
+        <option value="smooth">Smooth (most buffer)</option>
+        <option value="balanced">Balanced</option>
+        <option value="lowlatency">Low latency</option>
+      </select>
+    </label>
+    <div class="acct">
+      <span id="acct-info" class="muted"></span>
+      <button id="logout" class="ghost">Sign out</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="pane categories">
+      <div class="pane-head">
+        <input id="cat-search" type="search" placeholder="Filter categories" />
+      </div>
+      <ul id="cat-list" class="list"></ul>
+    </aside>
+
+    <section class="pane items">
+      <div class="pane-head">
+        <input id="item-search" type="search" placeholder="Search channels, movies, series" />
+        <span id="item-count" class="muted small"></span>
+      </div>
+      <ul id="item-list" class="list"></ul>
+      <button id="load-more" class="load-more" hidden>Show more</button>
+    </section>
+
+    <section class="pane stage">
+      <div class="video-shell">
+        <video id="video" controls playsinline preload="none"></video>
+        <div id="video-overlay" class="overlay">Pick something on the left to start watching.</div>
+        <div id="stats" class="stats" hidden></div>
+      </div>
+
+      <div class="now">
+        <div class="now-head">
+          <img id="now-logo" alt="" hidden />
+          <div>
+            <h2 id="now-title">Nothing playing</h2>
+            <div id="now-sub" class="muted small"></div>
+          </div>
+          <div class="now-actions">
+            <button id="fav-toggle" class="ghost" hidden>☆ Favourite</button>
+            <button id="copy-url" class="ghost" hidden>Copy direct URL</button>
+          </div>
+        </div>
+        <div id="now-detail" class="detail"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+  <div id="voice-hud" class="voice-hud" hidden></div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

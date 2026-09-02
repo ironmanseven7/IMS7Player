@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- IPTV panels are overwhelmingly plain HTTP, and many that offer HTTPS use
+         self-signed certificates. Cleartext must be allowed or nothing plays. -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
