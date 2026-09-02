@@ -59,6 +59,7 @@ function redact(urlStr) {
     const u = new URL(urlStr);
     if (u.searchParams.has('password')) u.searchParams.set('password', '***');
     if (u.searchParams.has('username')) u.searchParams.set('username', '***');
+    if (u.searchParams.has('key')) u.searchParams.set('key', '***');
     return u.toString().replace(/\/(live|movie|series)\/[^/]+\/[^/]+\//, '/$1/***/***/');
   } catch {
     return urlStr;
@@ -473,8 +474,77 @@ function serveStatic(req, res, url) {
   });
 }
 
+/**
+ * Optional shared passcode, for when the player is reachable by anyone but you.
+ *
+ * Set XTREAM_PASSCODE and every route needs it. This is a gate, not real
+ * authentication - it exists because /stream will relay to any host it is
+ * given, so an instance open to the internet without one is an open proxy
+ * running on your connection.
+ */
+const PASSCODE = process.env.XTREAM_PASSCODE || '';
+
+function cookieValue(req, name) {
+  const raw = req.headers.cookie || '';
+  for (const part of raw.split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === name) return decodeURIComponent(v.join('='));
+  }
+  return null;
+}
+
+function unlocked(req, url) {
+  if (!PASSCODE) return true;
+  if (url.searchParams.get('key') === PASSCODE) return true;
+  return cookieValue(req, 'xtreamkey') === PASSCODE;
+}
+
+function sendUnlockPage(res, wrong) {
+  const body = Buffer.from(`<!doctype html><html lang="en"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" /><title>Xtream Player</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0d1117;color:#e6edf3;
+font:16px/1.5 system-ui,"Segoe UI",sans-serif}form{width:min(340px,90vw);background:#141a23;
+border:1px solid #242c38;border-radius:14px;padding:26px;text-align:center}
+h1{font-size:19px;margin:0 0 6px}p{color:#8b98a8;font-size:13px;margin:0 0 18px}
+input{width:100%;padding:11px;background:#0d1117;border:1px solid #242c38;border-radius:8px;
+color:inherit;font:inherit;outline:none}input:focus{border-color:#4c9aff}
+button{width:100%;margin-top:12px;padding:11px;background:#4c9aff;color:#06101f;font-weight:600;
+border:0;border-radius:8px;cursor:pointer}.bad{color:#ff6b6b;font-size:13px;margin-top:12px}</style>
+</head><body><form method="GET" action="/">
+<h1>Xtream Player</h1><p>Enter the passcode to continue.</p>
+<input name="key" type="password" autofocus placeholder="Passcode" />
+<button type="submit">Unlock</button>
+${wrong ? '<div class="bad">That passcode did not match.</div>' : ''}
+</form></body></html>`);
+  // Always 401, never 200: /api and /stream must not hand the player an HTML
+  // page where it expects JSON or video. Browsers render a 401 body fine, and
+  // no WWW-Authenticate header means no native login popup.
+  res.writeHead(401, {
+    'content-type': 'text/html; charset=utf-8',
+    'content-length': body.length,
+    'cache-control': 'no-store',
+  });
+  res.end(body);
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+  if (PASSCODE && url.pathname !== '/health') {
+    if (!unlocked(req, url)) {
+      logLine(`GATE  refused ${req.socket.remoteAddress} ${url.pathname}`);
+      return sendUnlockPage(res, url.searchParams.has('key'));
+    }
+    // Correct passcode in the URL: remember it and drop it from the address bar.
+    if (url.searchParams.get('key') === PASSCODE) {
+      url.searchParams.delete('key');
+      res.writeHead(302, {
+        'set-cookie': `xtreamkey=${encodeURIComponent(PASSCODE)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`,
+        location: url.pathname + (url.searchParams.toString() ? '?' + url.searchParams : ''),
+      });
+      return res.end();
+    }
+  }
 
   if (url.pathname === '/api') return void handleApi(req, res, url);
   if (url.pathname === '/stream') return void handleStream(req, res, url);

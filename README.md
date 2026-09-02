@@ -46,8 +46,9 @@ other origin cannot call `player_api.php` or fetch `.m3u8` — the browser block
   (they are relative to the *final* upstream URL, which the browser can't resolve on its own)
 - forwards `Range` headers so seeking works on movies and episodes
 
-It binds to `127.0.0.1` only. Don't expose it — `/stream` will relay any http(s) URL handed
-to it, which is an open proxy if it's reachable from outside.
+It binds to `127.0.0.1` only. If you expose it with `BIND=0.0.0.0`, set `XTREAM_PASSCODE`
+too — `/stream` will relay any http(s) URL handed to it, which is an open proxy if it is
+reachable from outside and ungated.
 
 ## Format notes
 
@@ -156,6 +157,55 @@ toward the bottom of a list keeps loading more automatically.
 "Resumed from 12:34" toast. Positions under 30 seconds are ignored and anything past 95 % is
 treated as finished and cleared. Movie rows show a thin progress bar of how far you got. Live
 TV is excluded. Positions are stored per browser (or per app install), newest 300 kept.
+
+## Sharing the web version
+
+The web player is not a file you can send. It needs `server.js` running somewhere, because
+the CORS relay, the HLS manifest rewriting and `Range` forwarding all happen server-side.
+So the question is where that server runs.
+
+### Best: your friend runs their own copy
+
+Nothing of yours is exposed, and it works wherever they are.
+
+1. Install Node.js LTS from <https://nodejs.org>.
+2. Download this repository: **Code → Download ZIP** on GitHub, then unzip it.
+3. Double-click **Start Player.bat** (on macOS or Linux: `node server.js`).
+4. It opens at <http://127.0.0.1:8787>.
+
+The launcher checks for Node and points at the download if it is missing.
+
+### If you want to host it for them
+
+Your machine has to stay on, and the player becomes reachable by whoever has the address, so
+set a passcode. Without one, `/stream` will relay to any host it is handed — an open proxy
+running on your connection.
+
+```
+set BIND=0.0.0.0
+set XTREAM_PASSCODE=pick-something-long
+node server.js
+```
+
+Every route then returns **401** with an unlock page until the passcode is entered once; it is
+remembered in a cookie for 30 days. Only `/health` stays open, so the app can compare versions.
+The passcode is redacted from the log.
+
+On your own network that is all you need — give them `http://<your-lan-ip>:8787`. To reach it
+from outside your house you would also need a tunnel (for example Cloudflare Tunnel) or port
+forwarding. Think carefully before doing that: it puts a relay on your home connection.
+
+### What sharing actually shares
+
+The player keeps no accounts of its own. Whoever uses it types **your panel credentials** into
+their own browser, so sharing the player means sharing your line. Two consequences:
+
+- Your line has a **maximum number of simultaneous connections**. The account line at the top
+  of the app shows it, as `active / max`. Past that, streams fail with HTTP 513.
+- They can see and use the whole subscription.
+
+If that is not what you want, share the guide and let them use their own line — the player
+works with any Xtream panel, not just yours.
 
 ## Android APK
 
