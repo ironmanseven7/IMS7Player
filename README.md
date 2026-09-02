@@ -149,9 +149,17 @@ Names are matched loosely — exact, then prefix, then substring, then word over
 cnn" finds "CNN International HD". Anything below a confidence floor reports that it could not
 find it rather than playing something random.
 
-**Remote / D-pad.** Arrow keys move within a pane and cross between the three panes; Enter
-activates. Focus is drawn with a solid accent outline, since a remote gives no hover. Walking
-toward the bottom of a list keeps loading more automatically.
+**Remote / D-pad.** Arrows move within a column and cross between the three columns; Enter
+activates. **Up** from the top of a column steps into the **top bar**, where left and right
+reach the tabs, Voice, Buffering, Diagnostics and Sign out, and **Down** drops back into the
+column you came from. Focus is drawn with a solid accent outline, since a remote gives no
+hover. Walking toward the bottom of a list keeps loading more automatically.
+
+**Full screen.** The **Full screen** button beside the title, **OK** on the player itself, or
+saying "fullscreen". Any arrow key, **Back** or Escape leaves it. This expands the video to
+fill the window rather than calling the Fullscreen API — a TV WebView may not implement that
+API, and entering full screen must not depend on it. Entering pushes a history entry, so the
+remote's Back button leaves full screen rather than the app.
 
 **Resume.** Movies and episodes remember where you stopped, and jump back there with a
 "Resumed from 12:34" toast. Positions under 30 seconds are ignored and anything past 95 % is
