@@ -101,6 +101,34 @@ Other things that reduce stalling, already applied:
 If a channel still stutters on Smooth, the bottleneck is upstream of this player — your line's
 bandwidth or that channel's source. Compare with the same channel in VLC via **Copy direct URL**.
 
+## Voice, remote and resume
+
+**Voice.** The mic button in the top bar, or the **V** key. In the Android app it drives the
+device's own `SpeechRecognizer` through a native bridge, because a WebView has no Web Speech
+API; in a desktop browser it uses `webkitSpeechRecognition` (Chrome and Edge, not Firefox).
+Both paths end up in the same command handler.
+
+| Say | What happens |
+| --- | --- |
+| "watch CNN", "put on ESPN", "tune to BBC One" | Finds the channel and plays it |
+| "bring up movies", "show series", "go to live", "favourites" | Switches section |
+| "play Top Gun" | Searches movies, then series, then live |
+| "search comedy" | Types it into the search box |
+| "pause", "play", "mute", "fullscreen" | Transport controls |
+
+Names are matched loosely — exact, then prefix, then substring, then word overlap — so "watch
+cnn" finds "CNN International HD". Anything below a confidence floor reports that it could not
+find it rather than playing something random.
+
+**Remote / D-pad.** Arrow keys move within a pane and cross between the three panes; Enter
+activates. Focus is drawn with a solid accent outline, since a remote gives no hover. Walking
+toward the bottom of a list keeps loading more automatically.
+
+**Resume.** Movies and episodes remember where you stopped, and jump back there with a
+"Resumed from 12:34" toast. Positions under 30 seconds are ignored and anything past 95 % is
+treated as finished and cleared. Movie rows show a thin progress bar of how far you got. Live
+TV is excluded. Positions are stored per browser (or per app install), newest 300 kept.
+
 ## Android APK
 
 `android/` is a complete Android Studio / Gradle project that wraps this exact web app.
@@ -150,8 +178,8 @@ the phone, or `adb install app-debug.apk`.
 ### Limits
 
 - Debug signing means Android shows an "unknown developer" warning on install.
-- The UI is mouse/touch shaped. It runs on Android TV but D-pad navigation is not tuned, so a
-  box with a mouse or air-remote is the better experience for now.
+- D-pad navigation and voice work on Android TV. The layout is still a three-pane desktop
+  design, so a 10-foot UI it is not, but it is drivable from a remote.
 - MKV/AVI movies fail in a WebView exactly as they do in a desktop browser — the container is
   the limit, not the player.
 
