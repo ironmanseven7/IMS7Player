@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.7.0';
+const CLIENT_VERSION = '1.8.0';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -1001,7 +1001,7 @@ function focusablesIn(sel) {
   const root = document.querySelector(sel);
   if (!root) return [];
   return [...root.querySelectorAll('button, [href], input, select, video, details summary')]
-    .filter((el) => !el.disabled && el.offsetParent !== null);
+    .filter((el) => !el.disabled && el.offsetParent !== null && el.tabIndex >= 0);
 }
 
 function currentPaneIndex() {
@@ -1059,16 +1059,19 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  // OK / Enter on the player toggles full screen - the native video controls
-  // are effectively unusable from a remote.
-  if ((e.key === 'Enter' || e.key === ' ') && document.activeElement === $('#video')) {
-    e.preventDefault();
-    toggleVideoFull();
-    return;
-  }
-  if (e.key === 'Escape' && document.body.classList.contains('video-full')) {
+  const isFull = document.body.classList.contains('video-full');
+
+  // In full screen there is nothing to focus, so OK and Escape must work no
+  // matter where focus happens to be.
+  if (isFull && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape')) {
     e.preventDefault();
     setVideoFull(false);
+    return;
+  }
+  // OK on the player enters full screen (desktop, where the video is focusable).
+  if (!isFull && (e.key === 'Enter' || e.key === ' ') && document.activeElement === $('#video')) {
+    e.preventDefault();
+    toggleVideoFull();
     return;
   }
 
@@ -1444,6 +1447,7 @@ function detectPlatform() {
   document.body.classList.toggle('phone', phone);
   document.body.classList.toggle('desktop', !tv && !phone);
   document.body.classList.toggle('native', nativeApp);
+  if (document.getElementById('playpause')) applyPlayerControls();
 }
 
 window.addEventListener('resize', () => {
@@ -1573,3 +1577,32 @@ $('#fullscreen').addEventListener('click', toggleVideoFull);
 
 // Double-click / double-tap the picture, as in any other player.
 $('#video').addEventListener('dblclick', toggleVideoFull);
+
+/* ── TV: our own transport controls ───────────────────────────
+ * A <video controls> element swallows the D-pad: once focus lands on it the
+ * browser's own media controls own every arrow key, so the buttons underneath
+ * become unreachable. On a TV we turn the native controls off, take the video
+ * out of the focus order entirely, and drive it from ordinary buttons that
+ * remote navigation already understands.
+ */
+
+function applyPlayerControls() {
+  const video = $('#video');
+  const tv = state.platform === 'tv';
+  video.controls = !tv;
+  video.tabIndex = tv ? -1 : 0;
+  $('#playpause').hidden = !tv;
+}
+
+function syncPlayPauseLabel() {
+  const v = $('#video');
+  $('#playpause').textContent = v.paused ? '▶ Play' : '⏸ Pause';
+}
+
+$('#playpause').addEventListener('click', () => {
+  const v = $('#video');
+  if (v.paused) v.play().catch(() => {});
+  else v.pause();
+});
+$('#video').addEventListener('play', syncPlayPauseLabel);
+$('#video').addEventListener('pause', syncPlayPauseLabel);

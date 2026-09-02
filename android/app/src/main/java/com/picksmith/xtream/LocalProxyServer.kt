@@ -18,14 +18,17 @@ import java.util.concurrent.TimeUnit
  * speaks plain HTTP rather than going through fetch(). A localhost server gives
  * all three, exactly as the Node one does.
  *
- * Bound to 127.0.0.1 on an ephemeral port. /stream will only relay to a host the
- * app has actually logged into, so another app on the device cannot use it as a
- * general-purpose proxy.
+ * Bound to 127.0.0.1 on a FIXED port. This matters more than it looks: localStorage
+ * is keyed by origin, so an ephemeral port would give the page a different origin on
+ * every launch and silently discard the saved login, favourites and resume points.
+ *
+ * /stream will only relay to a host the app has actually logged into, so another app
+ * on the device cannot use it as a general-purpose proxy.
  */
-class LocalProxyServer(private val assets: AssetManager) : NanoHTTPD("127.0.0.1", 0) {
+class LocalProxyServer(private val assets: AssetManager, port: Int) : NanoHTTPD("127.0.0.1", port) {
 
     companion object {
-        const val VERSION = "1.7.0"
+        const val VERSION = "1.8.0"
         private val PANEL_STATUS_HINTS = mapOf(
             511 to "The panel wants credentials it did not get (HTTP 511). Check the username and password.",
             512 to "The panel rejected this line (HTTP 512). Usually a wrong username/password, an expired " +

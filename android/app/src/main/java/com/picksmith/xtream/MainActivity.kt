@@ -29,8 +29,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val proxy = LocalProxyServer(assets)
-        proxy.start(NanoTimeout, false)
+        val proxy = startProxy()
         server = proxy
 
         webView = WebView(this).apply {
@@ -69,6 +68,28 @@ class MainActivity : Activity() {
         server?.stop()
         webView.destroy()
         super.onDestroy()
+    }
+
+    /**
+     * Keep the port stable across launches, walking a small range if one is
+     * busy. The origin is part of localStorage's key, so a port that changes
+     * between launches throws away the saved login, favourites and resume
+     * points every time the app restarts. Only fall back to an ephemeral port
+     * if the whole range is taken, which loses persistence but still runs.
+     */
+    private fun startProxy(): LocalProxyServer {
+        for (port in 8787..8796) {
+            try {
+                val s = LocalProxyServer(assets, port)
+                s.start(NanoTimeout, false)
+                return s
+            } catch (e: java.io.IOException) {
+                // port busy - try the next
+            }
+        }
+        val fallback = LocalProxyServer(assets, 0)
+        fallback.start(NanoTimeout, false)
+        return fallback
     }
 
     /** Lets a fullscreen <video> take over the whole activity, in landscape. */

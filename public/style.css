@@ -709,9 +709,12 @@ body.phone .diag-panel { inset: 5% 4% calc(5% + 56px); }
 
 body.tv { font-size: 17px; }
 /* TVs crop the edges of the picture; keep everything inside the safe area. */
-body.tv .topbar { padding: 20px 44px; gap: 26px; }
+body.tv .topbar { padding: 20px 4vw; gap: 26px; }
 body.tv .layout {
-  padding: 0 36px 28px;
+  /* 4vw a side. TVs routinely crop ~5% of the picture, and 36px was not enough
+     on a 1080p panel - the brand and the first column were losing characters
+     off the left edge. */
+  padding: 0 4vw 3vh;
   /* Proportional, not fixed: fixed columns plus overscan padding can add up to
      more than a 720p panel is wide and squeeze the player to nothing. */
   grid-template-columns: minmax(190px, 19%) minmax(250px, 26%) minmax(320px, 1fr);
