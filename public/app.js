@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.8.0';
+const CLIENT_VERSION = '1.9.0';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';

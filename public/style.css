@@ -796,3 +796,34 @@ body.video-full .stats { bottom: 18px; right: 18px; }
   outline: 3px solid var(--accent);
   outline-offset: -3px;
 }
+
+/* ── brand mark ─────────────────────────────────────────── */
+.brand { display: flex; align-items: center; gap: 9px; }
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  object-fit: contain;
+  /* the badge is busy; a touch of lift keeps it from muddying into the bar */
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .6));
+}
+.brand-text { white-space: nowrap; }
+
+.login-logo {
+  display: block;
+  width: 132px;
+  height: 132px;
+  margin: 0 auto 14px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, .55));
+}
+.login-card h1 { text-align: center; }
+.login-card > p.muted { text-align: center; }
+
+body.tv .brand-mark { width: 40px; height: 40px; flex-basis: 40px; }
+body.phone .brand-mark { width: 24px; height: 24px; flex-basis: 24px; }
+body.phone .login-logo { width: 104px; height: 104px; }
+
+/* The wordmark wrapper must not inherit the accent colour meant for "Player". */
+.brand .brand-text { color: var(--text); }
+.brand .brand-text > span { color: var(--accent); }
