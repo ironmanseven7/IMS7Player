@@ -972,15 +972,24 @@ body.tv .mv-grid .mv-add:focus, body.tv .mv-grid .mv-add.focused {
   background: var(--accent-dim);
 }
 
-/* Full screen: the grid takes the whole window. */
+/* Full screen: the grid is sized to the pictures, not the window. Stretched to
+   a window of another shape (an ultrawide monitor, a resized browser) every
+   cell letterboxed its own picture, leaving black gaps between all four.
+   Sized to the tiles' combined shape and centred, they sit edge to edge and
+   any spare space is one border round the outside. */
 body.video-full .mv-grid {
+  --mv-ratio: 1.7778;              /* 2×2 of 16:9 is 16:9 */
   position: fixed;
   inset: 0;
   z-index: 90;
+  width: min(100vw, calc(100vh * var(--mv-ratio)));
+  height: min(100vh, calc(100vw / var(--mv-ratio)));
+  margin: auto;
   grid-auto-rows: 1fr;
   gap: 2px;
-  box-shadow: none;
+  box-shadow: 0 0 0 100vmax #000; /* paints the border round the grid */
 }
 body.video-full .mv-grid[data-tiles="1"] { grid-template-columns: 1fr; }
+body.video-full .mv-grid[data-tiles="2"] { --mv-ratio: 3.5556; }   /* side by side: 32:9 */
 body.video-full .mv-tile { aspect-ratio: auto; }
 body.video-full .mv-add { display: none !important; }
