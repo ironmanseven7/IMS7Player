@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.10.2';
+const CLIENT_VERSION = '1.10.3';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -1136,7 +1136,9 @@ document.addEventListener('keydown', (e) => {
   // Full-screen multiview: the arrows move the sound from picture to picture.
   if (isFull && mv.active) {
     e.preventDefault();
-    const next = tileNeighbour(mv.selected, e.key);
+    const next = document.body.classList.contains('mv-wide')
+      ? tileCycle(mv.selected, e.key)
+      : tileNeighbour(mv.selected, e.key);
     if (next !== null) {
       selectTile(next);
       mv.tiles[next].pick.focus();
@@ -1330,6 +1332,7 @@ async function handleVoiceCommand(raw) {
   // sections
   const section = text.replace(/^(go to|switch to|open|show|bring up|take me to|display)\s+/, '').trim();
   if (/^(multi ?view|split screen)$/.test(section)) { enterMultiview(); return 'Multiview'; }
+  if (/^(wide ?screen|ultra ?wide)( mode)?$/.test(section) && mv.active) { setWideFull(); return 'Widescreen'; }
   if (/^(live|live tv|tv|channels)$/.test(section)) { await ensureSection('live'); return 'Live TV'; }
   if (/^(movies|movie|vod|films|film)$/.test(section)) { await ensureSection('movie'); return 'Movies'; }
   if (/^(series|shows|tv shows|episodes)$/.test(section)) { await ensureSection('series'); return 'Series'; }
@@ -1661,10 +1664,24 @@ function setVideoFull(on) {
     history.pushState({ videoFull: true }, '');
     if (mv.active) mv.tiles[mv.selected]?.pick.focus();
     else $('#video').focus();
-  } else if (history.state && history.state.videoFull) {
-    history.back();                 // popstate clears the class
+  } else {
+    document.body.classList.remove('mv-wide');
+    if (history.state && history.state.videoFull) history.back();   // popstate clears the class
   }
   $('#fullscreen').textContent = on ? '⤡ Exit full screen' : '⤢ Full screen';
+}
+
+/**
+ * Widescreen multiview, for 21:9 monitors like 3440×1440: the tile with sound
+ * fills a 16:9 area at full height and the others stack beside it at a third
+ * the size. Choosing another tile swaps which one is big.
+ */
+function setWideFull() {
+  if (document.body.classList.contains('video-full')) return;
+  document.body.classList.add('mv-wide');
+  setVideoFull(true);
+  // refused (no tiles yet): don't leave the layout armed for a later full screen
+  if (!document.body.classList.contains('video-full')) document.body.classList.remove('mv-wide');
 }
 
 function toggleVideoFull() {
@@ -1672,11 +1689,12 @@ function toggleVideoFull() {
 }
 
 window.addEventListener('popstate', () => {
-  document.body.classList.remove('video-full');
+  document.body.classList.remove('video-full', 'mv-wide');
   $('#fullscreen').textContent = '⤢ Full screen';
 });
 
 $('#fullscreen').addEventListener('click', toggleVideoFull);
+$('#mv-wide').addEventListener('click', setWideFull);
 
 // Double-click / double-tap the picture, as in any other player.
 $('#video').addEventListener('dblclick', toggleVideoFull);
@@ -1786,6 +1804,7 @@ function enterMultiview() {
   $('#multiview').hidden = false;
   $('#copy-url').hidden = true;
   $('#mv-toggle').textContent = '✕ Exit multiview';
+  $('#mv-wide').hidden = false;
 
   if (seed) {
     addTile(seed);
@@ -1810,6 +1829,7 @@ function exitMultiview(keepSelected = true) {
   $('#multiview').hidden = true;
   $('#mv-toggle').textContent = '⊞ Multiview';
   $('#mv-remove').hidden = true;
+  $('#mv-wide').hidden = true;
 
   if (keep) {
     play('live', keep.id, null, { title: keep.name, logo: keep.logo, sub: 'Live', fav: keep.fav });
@@ -2014,6 +2034,13 @@ function tileNeighbour(i, key) {
   if (key === 'ArrowUp') j = i - 2;
   if (key === 'ArrowDown') j = i + 2 < n ? i + 2 : i < 2 && n > 2 ? n - 1 : null;
   return j !== null && j >= 0 && j < n ? j : null;
+}
+
+/** Widescreen has one big tile, not a grid: right/down is the next tile, left/up the previous. */
+function tileCycle(i, key) {
+  const n = mv.tiles.length;
+  if (n < 2) return null;
+  return key === 'ArrowRight' || key === 'ArrowDown' ? (i + 1) % n : (i - 1 + n) % n;
 }
 
 /**

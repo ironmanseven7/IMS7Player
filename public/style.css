@@ -993,3 +993,18 @@ body.video-full .mv-grid[data-tiles="1"] { grid-template-columns: 1fr; }
 body.video-full .mv-grid[data-tiles="2"] { --mv-ratio: 3.5556; }   /* side by side: 32:9 */
 body.video-full .mv-tile { aspect-ratio: auto; }
 body.video-full .mv-add { display: none !important; }
+
+/* Widescreen full screen, for 21:9 monitors (3440×1440). The tile with sound
+   takes a 16:9 area at full height; the others stack in a column a third that
+   size. 16:9 plus a third of 16:9 is 64:27 (2.37:1) - 3413×1440, within 27px
+   of the monitor, with no cropping. The big tile is placed by CSS rather than
+   moved in the DOM, because moving a playing <video> pauses it. */
+body.video-full.mv-wide .mv-grid:not([data-tiles="1"]) {
+  --mv-ratio: 2.3704;
+  grid-template-columns: 3fr 1fr;
+  grid-template-rows: repeat(3, 1fr);
+}
+body.video-full.mv-wide .mv-grid:not([data-tiles="1"]) .mv-tile { grid-column: 2; }
+body.video-full.mv-wide .mv-grid:not([data-tiles="1"]) .mv-tile.selected { grid-column: 1; grid-row: 1 / span 3; }
+/* The big picture already says which one has sound; its border would just frame the screen. */
+body.video-full.mv-wide .mv-grid:not([data-tiles="1"]) .mv-tile.selected::after { display: none; }

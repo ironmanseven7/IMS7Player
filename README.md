@@ -168,7 +168,11 @@ player into a two-column grid (the channel already playing becomes the first til
 channel from the list then adds it, and once all four are filled it replaces the tile that has
 the sound. Only the selected tile — blue border, 🔊 — is unmuted: click it, or on a remote
 move to it and press **OK**. **OK** again (or a double-click) makes the whole grid full screen,
-where the arrow keys move the sound between pictures. **✕ Remove tile** drops the selected
+where the arrow keys move the sound between pictures. **⬌ Widescreen** is full screen laid out
+for 21:9 monitors like 3440×1440: the tile with sound fills a 16:9 area at full height and the
+others stack beside it at a third the size (64:27 overall, so no cropping and only a sliver of
+border); choosing another tile — click it, or the arrow keys — makes that one the big picture.
+Say "widescreen" to open it. **✕ Remove tile** drops the selected
 one; **Exit multiview** goes back to a single player carrying on with the channel you were
 listening to. Picking a movie or episode leaves multiview.
 
