@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.10.0';
+const CLIENT_VERSION = '1.10.1';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -403,19 +403,39 @@ async function loadSection(section) {
 
   try {
     const cats = await api(CAT_ACTION[section]);
-    state.categories = Array.isArray(cats) ? cats : [];
+    state.categories = adultLast(Array.isArray(cats) ? cats : [], (c) => isAdultName(c.category_name));
     renderCategories();
 
     if (!state.cache[section]) {
       const all = await api(LIST_ACTION[section]);
       state.cache[section] = Array.isArray(all) ? all : [];
     }
+    // Voice search can fill the cache before the categories are known, so this
+    // runs on every load; it is stable, so doing it twice changes nothing.
+    const adultCats = new Set(state.categories.filter((c) => isAdultName(c.category_name)).map((c) => String(c.category_id)));
+    state.cache[section] = adultLast(state.cache[section], (r) => adultCats.has(String(r.category_id)) || isAdultName(r.name || r.title));
     state.items = state.cache[section];
     resetList();
   } catch (ex) {
     $('#cat-list').innerHTML = '';
     $('#item-list').innerHTML = `<li class="error-row">${esc(ex.message || ex)}</li>`;
   }
+}
+
+/**
+ * Panels list adult channels wherever their own ordering puts them, which is
+ * often the top of "All". Keep them, but move them to the end.
+ */
+// "Adult Swim" is a cartoon channel, not an adult one.
+const ADULT_NAME = /^\W*(xxx|adults?\b(?!\s*swim)|18\s*\+)|\b(xxx|adults? only|for adults|porn)\b/i;
+const isAdultName = (name) => ADULT_NAME.test(String(name || ''));
+
+/** Stable partition: everything else in its original order, then the adult rows. */
+function adultLast(rows, isAdult) {
+  const keep = [];
+  const last = [];
+  for (const r of rows) (isAdult(r) ? last : keep).push(r);
+  return last.length ? keep.concat(last) : rows;
 }
 
 function renderCategories() {
