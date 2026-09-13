@@ -827,3 +827,160 @@ body.phone .login-logo { width: 104px; height: 104px; }
 /* The wordmark wrapper must not inherit the accent colour meant for "Player". */
 .brand .brand-text { color: var(--text); }
 .brand .brand-text > span { color: var(--accent); }
+
+/* ── multiview ──────────────────────────────────────────────
+   Up to four live pictures in a two-column grid where the player sits. */
+body.multiview .video-shell { display: none !important; }
+
+.mv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  background: #000;
+}
+.mv-tile, .mv-add { position: relative; aspect-ratio: 16 / 9; min-width: 0; }
+.mv-grid[data-tiles="0"] .mv-add { grid-column: 1 / -1; }
+
+.mv-tile { background: #000; overflow: hidden; }
+.mv-tile video { display: block; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.mv-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(4, 8, 13, .72);
+  pointer-events: none;
+}
+.mv-status b { color: var(--danger); }
+
+/* The whole picture is the button: press it to give that tile the sound. */
+.mv-pick {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.mv-label, .mv-audio {
+  margin: 6px;
+  background: rgba(4, 8, 13, .75);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.mv-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 78%;
+  padding: 3px 8px 3px 4px;
+}
+.mv-label img { width: 20px; height: 20px; flex: 0 0 20px; object-fit: contain; }
+.mv-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-audio { padding: 2px 6px; opacity: .6; }
+.mv-audio::after { content: '🔇'; }
+.mv-tile.selected .mv-audio { opacity: 1; }
+.mv-tile.selected .mv-audio::after { content: '🔊'; }
+.mv-tile.selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--accent);
+  pointer-events: none;
+}
+
+/* White, so remote focus reads differently from the blue "has sound" border. */
+.mv-grid .mv-pick:focus-visible, .mv-grid .mv-pick.focused {
+  outline: 3px solid #fff;
+  outline-offset: -6px;
+  background: transparent;
+}
+
+.mv-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: rgba(4, 8, 13, .8);
+  border: 0;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.mv-tile:hover .mv-close { opacity: 1; }
+
+.mv-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  background: #0a0f16;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  text-align: center;
+  cursor: pointer;
+}
+.mv-add:hover { color: var(--text); border-color: var(--accent); }
+.mv-plus { font-size: 26px; line-height: 1; color: var(--accent); }
+.mv-grid .mv-add:focus-visible, .mv-grid .mv-add.focused {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+  background: var(--accent-dim);
+  color: var(--text);
+}
+
+body.phone .mv-grid {
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .5);
+}
+body.phone .mv-close { opacity: 1; }          /* no hover on a touchscreen */
+body.phone .mv-label, body.phone .mv-audio { margin: 4px; font-size: 11px; }
+body.phone .mv-label img { width: 16px; height: 16px; flex-basis: 16px; }
+body.phone .mv-add-note, body.phone #mv-add-note { display: none; }
+body.phone .now-actions { flex-wrap: wrap; justify-content: flex-end; }
+
+body.tv .mv-close { display: none; }          /* the remote uses "Remove tile" */
+body.tv .mv-label, body.tv .mv-audio { margin: 10px; font-size: 16px; }
+body.tv .mv-label img { width: 30px; height: 30px; flex-basis: 30px; }
+body.tv .mv-status { font-size: 15px; }
+body.tv .mv-grid .mv-pick:focus, body.tv .mv-grid .mv-pick.focused {
+  outline: 4px solid #fff;
+  outline-offset: -8px;
+  background: transparent;
+}
+body.tv .mv-grid .mv-add:focus, body.tv .mv-grid .mv-add.focused {
+  outline: 4px solid var(--accent);
+  outline-offset: -4px;
+  background: var(--accent-dim);
+}
+
+/* Full screen: the grid takes the whole window. */
+body.video-full .mv-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  grid-auto-rows: 1fr;
+  gap: 2px;
+  box-shadow: none;
+}
+body.video-full .mv-grid[data-tiles="1"] { grid-template-columns: 1fr; }
+body.video-full .mv-tile { aspect-ratio: auto; }
+body.video-full .mv-add { display: none !important; }

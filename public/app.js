@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.9.0';
+const CLIENT_VERSION = '1.10.0';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -102,9 +102,18 @@ const state = {
   shown: 0,
   query: '',
   now: null,            // currently playing descriptor
-  hls: null,
-  mpegts: null,
+  engine: null,         // hls.js / mpegts.js handle for the main player
+  maxConnections: 0,    // what the panel says this line allows; 0 = unknown
   cache: { live: null, movie: null, series: null }, // all-streams cache per section
+};
+
+/** Multiview: up to MV_MAX live channels on screen, one of them with sound. */
+const MV_MAX = 4;
+const mv = {
+  active: false,
+  tiles: [],            // { id, name, logo, fav, el, video, pick, status, engine, gen, ... }
+  selected: 0,
+  epgFor: null,         // stream id the guide below the grid is showing
 };
 
 /* ── plumbing ─────────────────────────────────────────────── */
@@ -319,6 +328,7 @@ async function connect(creds) {
   }
 
   const ui = info.user_info;
+  state.maxConnections = Number(ui.max_connections) || 0;
   const exp = ui.exp_date ? new Date(Number(ui.exp_date) * 1000).toLocaleDateString() : 'never';
   $('#acct-info').textContent =
     `${ui.username} · ${ui.status || 'Active'} · expires ${exp} · ${ui.active_cons || 0}/${ui.max_connections || '?'} connections`;
@@ -537,6 +547,15 @@ async function open(row) {
   if (!row) return;
   const kind = itemKind(row);
 
+  // In multiview a channel goes into the grid; anything on demand leaves it.
+  if (mv.active) {
+    if (kind === 'live') {
+      addTile(channelOf(row));
+      return;
+    }
+    exitMultiview(false);
+  }
+
   if (kind === 'series') {
     const id = row.series_id || row.id;
     showMeta({ title: row.name || row.title, logo: row.cover || row.stream_icon, sub: [row.year, row.genre].filter(Boolean).join(' · ') });
@@ -633,9 +652,12 @@ function renderSeries(row, info) {
 }
 
 async function loadEpg(streamId) {
+  // Moving between multiview tiles fires these quickly; only the newest may paint.
+  const seq = (loadEpg.seq = (loadEpg.seq || 0) + 1);
   $('#now-detail').innerHTML = '<div class="loading">Loading guide…</div>';
   try {
     const data = await api('get_short_epg', { stream_id: streamId, limit: 8 });
+    if (seq !== loadEpg.seq) return;
     const list = data?.epg_listings || [];
     if (!list.length) {
       $('#now-detail').innerHTML = '<div class="loading">No EPG data for this channel.</div>';
@@ -654,6 +676,7 @@ async function loadEpg(streamId) {
         .join('') +
       '</ul>';
   } catch (ex) {
+    if (seq !== loadEpg.seq) return;
     $('#now-detail').innerHTML = `<div class="error-row">${esc(ex.message || ex)}</div>`;
   }
 }
@@ -664,21 +687,63 @@ function stopPlayback() {
   const video = $('#video');
   // Switching away clears currentTime, so bank the position first.
   if (typeof saveResumeNow === 'function') saveResumeNow();
-  if (state.hls) {
-    state.hls.destroy();
-    state.hls = null;
-  }
-  if (state.mpegts) {
-    try {
-      state.mpegts.pause();
-      state.mpegts.unload();
-      state.mpegts.detachMediaElement();
-      state.mpegts.destroy();
-    } catch {}
-    state.mpegts = null;
-  }
+  state.engine?.destroy();
+  state.engine = null;
   video.removeAttribute('src');
   video.load();
+}
+
+/**
+ * Attach a live stream to a <video>, as HLS or MPEG-TS per the login's format.
+ * Shared by the main player and the multiview tiles. Returns a handle whose
+ * destroy() releases the connection, or null when the browser plays it natively.
+ */
+function attachLive(video, src, profile, fail) {
+  if (state.creds.fmt === 'm3u8') {
+    if (window.Hls && Hls.isSupported()) {
+      const hls = new Hls(profile.hls);
+      // Attaching reloads the element, which can abort the play() below before
+      // anything has arrived - several streams starting at once reliably hit it.
+      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+      hls.on(Hls.Events.ERROR, (_e, data) => {
+        if (!data.fatal) return;
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+        else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+        else fail(`${data.details || data.type}`);
+      });
+      hls.loadSource(src);
+      hls.attachMedia(video);
+      video.play().catch(() => {});
+      return { destroy: () => hls.destroy() };
+    }
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = src;
+      video.play().catch(() => {});
+    } else {
+      fail('This browser cannot play HLS.');
+    }
+    return null;
+  }
+
+  if (window.mpegts && mpegts.isSupported()) {
+    const p = mpegts.createPlayer({ type: 'mpegts', isLive: true, url: src }, profile.ts);
+    p.on(mpegts.Events.ERROR, (type, detail) => fail(`${type} ${detail || ''}`));
+    p.attachMediaElement(video);
+    p.load();
+    p.play()?.catch?.(() => {});
+    return {
+      destroy() {
+        try {
+          p.pause();
+          p.unload();
+          p.detachMediaElement();
+          p.destroy();
+        } catch {}
+      },
+    };
+  }
+  fail('MPEG-TS playback is not supported in this browser. Switch the live format to HLS.');
+  return null;
 }
 
 function showMeta({ title, logo, sub }) {
@@ -754,42 +819,8 @@ function play(kind, id, ext, meta = {}) {
 
   video.addEventListener('playing', clearOverlay, { once: true });
 
-  const isHls = kind === 'live' && state.creds.fmt === 'm3u8';
-  const isTs = kind === 'live' && state.creds.fmt === 'ts';
-
-  if (isHls) {
-    if (window.Hls && Hls.isSupported()) {
-      const hls = new Hls(bufferProfile().hls);
-      state.hls = hls;
-      hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (!data.fatal) return;
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-        else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-        else fail(`${data.details || data.type}`);
-      });
-      hls.loadSource(src);
-      hls.attachMedia(video);
-      video.play().catch(() => {});
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = src;
-      video.play().catch(() => {});
-    } else {
-      fail('This browser cannot play HLS.');
-    }
-    return;
-  }
-
-  if (isTs) {
-    if (window.mpegts && mpegts.isSupported()) {
-      const p = mpegts.createPlayer({ type: 'mpegts', isLive: true, url: src }, bufferProfile().ts);
-      state.mpegts = p;
-      p.on(mpegts.Events.ERROR, (type, detail) => fail(`${type} ${detail || ''}`));
-      p.attachMediaElement(video);
-      p.load();
-      p.play().catch(() => {});
-    } else {
-      fail('MPEG-TS playback is not supported in this browser. Switch the live format to HLS.');
-    }
+  if (kind === 'live') {
+    state.engine = attachLive(video, src, bufferProfile(), fail);
     return;
   }
 
@@ -876,6 +907,7 @@ function startStatsReadout() {
 $('#buffer-mode').addEventListener('change', (e) => {
   localStorage.setItem(BUFFER_KEY, e.target.value);
   toast(`Buffering set to ${BUFFER_PROFILES[e.target.value].label}.`);
+  if (mv.active) mv.tiles.forEach(startTile);
   const n = state.now;
   if (n) play(n.kind, n.id, n.ext, n.meta || {}); // reload so the new settings take effect
 });
@@ -904,6 +936,7 @@ async function checkServerVersion() {
   startStatsReadout();
   startResumeTracking();
   watchForSlowStart();
+  watchTiles();
   let saved = null;
   try {
     saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
@@ -1080,6 +1113,17 @@ document.addEventListener('keydown', (e) => {
   // A dropdown needs up/down for its own options.
   if (onSelect && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
 
+  // Full-screen multiview: the arrows move the sound from picture to picture.
+  if (isFull && mv.active) {
+    e.preventDefault();
+    const next = tileNeighbour(mv.selected, e.key);
+    if (next !== null) {
+      selectTile(next);
+      mv.tiles[next].pick.focus();
+    }
+    return;
+  }
+
   // In full screen the panes are hidden; only leaving it makes sense.
   if (document.body.classList.contains('video-full')) {
     e.preventDefault();
@@ -1115,6 +1159,21 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   lastPane = pane;
+
+  // The multiview grid is two columns, so it needs 2-D movement of its own.
+  if (mv.active && $('#multiview').contains(document.activeElement)) {
+    const target = gridStep(document.activeElement, e.key);
+    if (target) {
+      e.preventDefault();
+      focusEl(target);
+      return;
+    }
+    if (target === false) {
+      e.preventDefault();
+      focusTopbar(false);
+      return;
+    }
+  }
 
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     const next = pane + (e.key === 'ArrowRight' ? 1 : -1);
@@ -1213,6 +1272,7 @@ const VOICE_HELP = [
   '"bring up movies" · "show series"',
   '"play Top Gun" · "search comedy"',
   '"pause" · "play" · "fullscreen"',
+  '"multiview" · "add ESPN"',
 ];
 
 async function handleVoiceCommand(raw) {
@@ -1220,18 +1280,36 @@ async function handleVoiceCommand(raw) {
   if (!text) return 'Did not catch that.';
 
   // transport
-  if (/^(pause|stop)$/.test(text)) { $('#video').pause(); return 'Paused'; }
-  if (/^(play|resume|continue)$/.test(text)) { $('#video').play(); return 'Playing'; }
-  if (/^mute$/.test(text)) { $('#video').muted = true; return 'Muted'; }
-  if (/^(unmute|sound on)$/.test(text)) { $('#video').muted = false; return 'Unmuted'; }
+  if (/^(pause|stop)$/.test(text)) { activeVideo().pause(); return 'Paused'; }
+  if (/^(play|resume|continue)$/.test(text)) { activeVideo().play(); return 'Playing'; }
+  if (/^mute$/.test(text)) { activeVideo().muted = true; return 'Muted'; }
+  if (/^(unmute|sound on)$/.test(text)) { activeVideo().muted = false; return 'Unmuted'; }
   if (/full ?screen/.test(text)) {
-    const v = $('#video');
-    if (v.requestFullscreen) v.requestFullscreen();
+    setVideoFull(true);
     return 'Fullscreen';
+  }
+
+  // multiview
+  if (/^(exit|close|leave|stop|end) (multi ?view|split screen)$/.test(text)) {
+    exitMultiview(true);
+    return 'Multiview closed';
+  }
+  const add = text.match(/^(?:add|also watch|and)\s+(.+)$/);
+  if (add) {
+    if (!state.cache.live) {
+      const rows = await api(LIST_ACTION.live);
+      state.cache.live = Array.isArray(rows) ? rows : [];
+    }
+    const hit = bestMatch(add[1], state.cache.live);
+    if (!hit) return `Could not find "${add[1]}"`;
+    enterMultiview();
+    addTile(channelOf(hit));
+    return `Added ${hit.name}`;
   }
 
   // sections
   const section = text.replace(/^(go to|switch to|open|show|bring up|take me to|display)\s+/, '').trim();
+  if (/^(multi ?view|split screen)$/.test(section)) { enterMultiview(); return 'Multiview'; }
   if (/^(live|live tv|tv|channels)$/.test(section)) { await ensureSection('live'); return 'Live TV'; }
   if (/^(movies|movie|vod|films|film)$/.test(section)) { await ensureSection('movie'); return 'Movies'; }
   if (/^(series|shows|tv shows|episodes)$/.test(section)) { await ensureSection('series'); return 'Series'; }
@@ -1553,11 +1631,16 @@ document.addEventListener('focusout', (e) => {
 function setVideoFull(on) {
   const already = document.body.classList.contains('video-full');
   if (on === already) return;
+  if (on && mv.active && !mv.tiles.length) {
+    toast('Add a channel to multiview first.');
+    return;
+  }
   document.body.classList.toggle('video-full', on);
 
   if (on) {
     history.pushState({ videoFull: true }, '');
-    $('#video').focus();
+    if (mv.active) mv.tiles[mv.selected]?.pick.focus();
+    else $('#video').focus();
   } else if (history.state && history.state.videoFull) {
     history.back();                 // popstate clears the class
   }
@@ -1594,15 +1677,350 @@ function applyPlayerControls() {
   $('#playpause').hidden = !tv;
 }
 
+/** The picture the transport controls act on: the tile with sound, in multiview. */
+function activeVideo() {
+  return (mv.active && mv.tiles[mv.selected]?.video) || $('#video');
+}
+
 function syncPlayPauseLabel() {
-  const v = $('#video');
+  const v = activeVideo();
   $('#playpause').textContent = v.paused ? '▶ Play' : '⏸ Pause';
 }
 
 $('#playpause').addEventListener('click', () => {
-  const v = $('#video');
+  const v = activeVideo();
   if (v.paused) v.play().catch(() => {});
   else v.pause();
 });
 $('#video').addEventListener('play', syncPlayPauseLabel);
 $('#video').addEventListener('pause', syncPlayPauseLabel);
+
+/* ── multiview ────────────────────────────────────────────────
+ * Up to four live channels at once. Every tile is its own <video> with its own
+ * hls.js / mpegts.js instance through the same relay, which also makes every
+ * tile its own connection on the line - most subscriptions cap that, so the
+ * limit the panel reports is shown. Only the selected tile has sound.
+ *
+ * Tiles are never moved once in the grid: taking a playing <video> out of the
+ * document pauses it, so tiles are inserted, swapped in place, or removed.
+ */
+
+/** The fields a tile needs, from a live row or a saved favourite. */
+function channelOf(row) {
+  const id = row.stream_id || row.id;
+  const name = row.name || row.title || 'Channel';
+  return { id, name, logo: row.stream_icon || row.cover, fav: { kind: 'live', id, name, stream_icon: row.stream_icon } };
+}
+
+/**
+ * The chosen buffering profile, trimmed. Four pictures each holding a minute of
+ * video is enough to run a streaming stick out of memory, and a quarter-screen
+ * tile gains nothing from a stream variant bigger than itself.
+ */
+function tileProfile() {
+  const p = bufferProfile();
+  return {
+    hls: {
+      ...p.hls,
+      maxBufferLength: Math.min(p.hls.maxBufferLength || 30, 20),
+      maxMaxBufferLength: 30,
+      maxBufferSize: 30 * 1000 * 1000,
+      backBufferLength: 10,
+      capLevelToPlayerSize: true,
+    },
+    ts: { ...p.ts, autoCleanupSourceBuffer: true, autoCleanupMaxBackwardDuration: 20, autoCleanupMinBackwardDuration: 10 },
+  };
+}
+
+function mvCountNote() {
+  const max = state.maxConnections;
+  const base = `${mv.tiles.length} of ${MV_MAX} on screen`;
+  return max ? `${base} · your line allows ${max} connection${max === 1 ? '' : 's'}` : base;
+}
+
+/** Only a tile beyond the line's connection count is the likely casualty. */
+function connectionHint(t) {
+  const max = state.maxConnections;
+  return max && mv.tiles.indexOf(t) >= max
+    ? `<br><span class="small">Your line allows ${max} connection${max === 1 ? '' : 's'}, so the provider is probably refusing this one.</span>`
+    : '';
+}
+
+function showEmptyMultiview() {
+  mv.epgFor = null;
+  showMeta({ title: 'Multiview', sub: `Pick up to ${MV_MAX} channels from the list.` });
+  setFavButton(null);
+  $('#now-detail').innerHTML = '';
+}
+
+function enterMultiview() {
+  if (mv.active) return;
+  const n = state.now;
+  const seed = n && n.kind === 'live' ? { id: n.id, name: n.meta.title, logo: n.meta.logo, fav: n.meta.fav } : null;
+
+  stopPlayback();                 // frees the connection the first tile is about to need
+  state.now = null;
+  mv.active = true;
+  mv.epgFor = null;
+  document.body.classList.add('multiview');
+  $('#multiview').hidden = false;
+  $('#copy-url').hidden = true;
+  $('#mv-toggle').textContent = '✕ Exit multiview';
+
+  if (seed) {
+    addTile(seed);
+    toast('Pick more channels from the list to add them.');
+  } else {
+    layoutMultiview();
+    showEmptyMultiview();
+    toast(`Pick channels from the list - up to ${MV_MAX}.`);
+  }
+}
+
+/** Leave multiview. By default the tile with sound carries on in the normal player. */
+function exitMultiview(keepSelected = true) {
+  if (!mv.active) return;
+  const keep = keepSelected ? mv.tiles[mv.selected] : null;
+  setVideoFull(false);
+  mv.tiles.forEach(teardownTile);
+  mv.tiles = [];
+  mv.selected = 0;
+  mv.active = false;
+  document.body.classList.remove('multiview');
+  $('#multiview').hidden = true;
+  $('#mv-toggle').textContent = '⊞ Multiview';
+  $('#mv-remove').hidden = true;
+
+  if (keep) {
+    play('live', keep.id, null, { title: keep.name, logo: keep.logo, sub: 'Live', fav: keep.fav });
+    loadEpg(keep.id);
+  } else {
+    showMeta({});
+    setFavButton(null);
+    $('#now-detail').innerHTML = '';
+    const overlay = $('#video-overlay');
+    overlay.hidden = false;
+    overlay.textContent = 'Pick something on the left to start watching.';
+  }
+}
+
+function createTile(ch) {
+  const el = document.createElement('div');
+  el.className = 'mv-tile';
+  el.innerHTML = `
+    <video playsinline muted preload="none" tabindex="-1"></video>
+    <div class="mv-status">Connecting…</div>
+    <button class="mv-pick" type="button" aria-label="${esc(ch.name)}">
+      <span class="mv-label">${ch.logo ? `<img src="${esc(ch.logo)}" alt="" onerror="this.remove()" />` : ''}<span class="mv-name">${esc(ch.name)}</span></span>
+      <span class="mv-audio" aria-hidden="true"></span>
+    </button>
+    <button class="mv-close" type="button" tabindex="-1" title="Remove from multiview" aria-label="Remove ${esc(ch.name)}">✕</button>`;
+
+  const t = {
+    ...ch,
+    el,
+    video: el.querySelector('video'),
+    pick: el.querySelector('.mv-pick'),
+    status: el.querySelector('.mv-status'),
+    engine: null,
+    gen: 0,
+  };
+
+  t.video.addEventListener('playing', () => {
+    t.started = true;
+    setTileStatus(t, '');
+  });
+  const syncIfSelected = () => t === mv.tiles[mv.selected] && syncPlayPauseLabel();
+  t.video.addEventListener('play', syncIfSelected);
+  t.video.addEventListener('pause', syncIfSelected);
+
+  // First press moves the sound here. On a remote, OK again goes full screen;
+  // with a mouse or finger that's a double-click / double-tap, as on the main player.
+  t.pick.addEventListener('click', () => {
+    const i = mv.tiles.indexOf(t);
+    if (i !== mv.selected) selectTile(i);
+    else if (state.platform === 'tv') toggleVideoFull();
+  });
+  t.pick.addEventListener('dblclick', toggleVideoFull);
+  el.querySelector('.mv-close').addEventListener('click', (e) => {
+    e.stopPropagation();
+    removeTile(mv.tiles.indexOf(t));
+  });
+  return t;
+}
+
+function setTileStatus(t, html) {
+  t.status.hidden = !html;
+  t.status.innerHTML = html || '';
+}
+
+function startTile(t) {
+  t.engine?.destroy();
+  t.video.removeAttribute('src');
+  t.video.load();
+  const gen = ++t.gen;
+  Object.assign(t, { engine: null, started: false, startedAt: Date.now(), dry: 0, warned: false });
+  setTileStatus(t, 'Connecting…');
+
+  const fail = (msg) => {
+    if (gen !== t.gen) return;
+    setTileStatus(t, `<b>Could not play</b><br>${esc(msg)}${connectionHint(t)}`);
+  };
+  t.engine = attachLive(t.video, proxied(directUrl('live', t.id)), tileProfile(), fail);
+}
+
+function teardownTile(t) {
+  t.gen++;                        // late errors from this stream are no longer ours
+  t.engine?.destroy();
+  t.engine = null;
+  t.video.removeAttribute('src');
+  t.video.load();
+  t.el.remove();
+}
+
+function addTile(ch) {
+  const dupe = mv.tiles.findIndex((t) => String(t.id) === String(ch.id));
+  if (dupe >= 0) {
+    selectTile(dupe);
+    toast(`${ch.name} is already on screen.`);
+    return;
+  }
+
+  const t = createTile(ch);
+  if (mv.tiles.length >= MV_MAX) {
+    // Full grid: the tile with sound is the one that changes, like flipping its channel.
+    const old = mv.tiles[mv.selected];
+    old.el.replaceWith(t.el);
+    teardownTile(old);
+    mv.tiles[mv.selected] = t;
+    toast(`Swapped ${old.name} for ${ch.name}.`);
+  } else {
+    $('#multiview').insertBefore(t.el, $('#mv-add'));
+    mv.tiles.push(t);
+  }
+
+  startTile(t);
+  layoutMultiview();
+  selectTile(mv.selected);        // re-applies sound, so the new tile stays muted unless it's selected
+
+  const max = state.maxConnections;
+  if (max && mv.tiles.length > max) {
+    toast(`Your line allows ${max} connection${max === 1 ? '' : 's'} - your provider may refuse this channel or cut off another.`, 5000);
+  }
+}
+
+function removeTile(i) {
+  const t = mv.tiles[i];
+  if (!t) return;
+  teardownTile(t);
+  mv.tiles.splice(i, 1);
+  if (i < mv.selected) mv.selected--;
+  mv.selected = Math.min(mv.selected, Math.max(0, mv.tiles.length - 1));
+  layoutMultiview();
+
+  if (mv.tiles.length) {
+    selectTile(mv.selected);
+  } else {
+    setVideoFull(false);
+    showEmptyMultiview();
+  }
+}
+
+function selectTile(i) {
+  const t = mv.tiles[i];
+  if (!t) return;
+  mv.selected = i;
+  mv.tiles.forEach((x, j) => {
+    x.el.classList.toggle('selected', j === i);
+    x.video.muted = j !== i;
+  });
+  showMeta({ title: t.name, logo: t.logo, sub: `Multiview · ${mvCountNote()}` });
+  setFavButton(t.fav);
+  syncPlayPauseLabel();
+  if (mv.epgFor !== t.id) {
+    mv.epgFor = t.id;
+    loadEpg(t.id);
+  }
+}
+
+function layoutMultiview() {
+  const count = mv.tiles.length;
+  $('#multiview').dataset.tiles = count;
+  $('#mv-add').hidden = count >= MV_MAX;
+  $('#mv-add-note').textContent = mvCountNote();
+  $('#mv-remove').hidden = !count;
+}
+
+/** The main player's stall rules, applied to each tile. */
+function watchTiles() {
+  setInterval(() => {
+    if (!mv.active) return;
+    for (const t of mv.tiles) {
+      if (!t.started) {
+        // Video has arrived but nothing is playing: a start that got cancelled.
+        if (t.video.paused && t.video.readyState >= 3) t.video.play().catch(() => {});
+        if (!t.warned && Date.now() - t.startedAt > 15000) {
+          t.warned = true;
+          setTileStatus(t, '<b>Still connecting</b>' +
+            (connectionHint(t) || '<br><span class="small">The provider has not started sending this channel.</span>'));
+        }
+        continue;
+      }
+      // Browsers pause silent video to save power (a muted tile counts as
+      // silent). Nobody can pause a muted tile on purpose, so start it again.
+      if (t.video.paused && t !== mv.tiles[mv.selected] && !document.hidden) {
+        t.video.play().catch(() => {});
+      }
+      // Twelve seconds dry on a live feed will not fix itself; rebuild the tile.
+      if (!t.video.paused && t.video.readyState < 3) {
+        t.dry += 2;
+        if (t.dry >= 12 && Date.now() - (t.lastRecover || 0) > 30000) {
+          t.lastRecover = Date.now();
+          startTile(t);
+        }
+      } else {
+        t.dry = 0;
+      }
+    }
+  }, 2000);
+}
+
+/** Tile index an arrow key moves to in the two-column grid, or null. */
+function tileNeighbour(i, key) {
+  const n = mv.tiles.length;
+  let j = null;
+  if (key === 'ArrowLeft' && i % 2 === 1) j = i - 1;
+  if (key === 'ArrowRight' && i % 2 === 0) j = i + 1;
+  if (key === 'ArrowUp') j = i - 2;
+  if (key === 'ArrowDown') j = i + 2 < n ? i + 2 : i < 2 && n > 2 ? n - 1 : null;
+  return j !== null && j >= 0 && j < n ? j : null;
+}
+
+/**
+ * D-pad movement inside the grid (outside full screen). Returns the element to
+ * focus, false to go up into the top bar, or null to let normal pane
+ * navigation handle the key (left out of the grid goes back to the list).
+ */
+function gridStep(el, key) {
+  const grid = $('#multiview');
+  const cells = [...grid.children].filter((c) => !c.hidden).map((c) => c.querySelector('.mv-pick') || c);
+  const j = cells.indexOf(el);
+  if (j < 0) return null;
+  const row = Math.floor(j / 2);
+  const lastRow = Math.floor((cells.length - 1) / 2);
+
+  if (key === 'ArrowLeft') return j % 2 === 1 ? cells[j - 1] : null;
+  if (key === 'ArrowRight') return j % 2 === 0 && cells[j + 1] ? cells[j + 1] : null;
+  if (key === 'ArrowUp') return row > 0 ? cells[j - 2] : false;
+  if (row < lastRow) return cells[j + 2] || cells[cells.length - 1];
+  return focusablesIn('.stage').find((x) => !grid.contains(x)) || null;
+}
+
+$('#mv-toggle').addEventListener('click', () => (mv.active ? exitMultiview(true) : enterMultiview()));
+$('#mv-remove').addEventListener('click', () => removeTile(mv.selected));
+$('#mv-add').addEventListener('click', async () => {
+  if (state.section !== 'live' && state.section !== 'favorites') await ensureSection('live');
+  toast('Pick a channel to add it.');
+  if (state.platform === 'phone') $('.items').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  else focusPane(1);
+});

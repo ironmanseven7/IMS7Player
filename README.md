@@ -144,6 +144,8 @@ Both paths end up in the same command handler.
 | "play Top Gun" | Searches movies, then series, then live |
 | "search comedy" | Types it into the search box |
 | "pause", "play", "mute", "fullscreen" | Transport controls |
+| "multiview", "add ESPN" | Opens multiview / adds a channel to it |
+| "exit multiview" | Back to one channel, keeping the one with sound |
 
 Names are matched loosely — exact, then prefix, then substring, then word overlap — so "watch
 cnn" finds "CNN International HD". Anything below a confidence floor reports that it could not
@@ -160,6 +162,22 @@ saying "fullscreen". Any arrow key, **Back** or Escape leaves it. This expands t
 fill the window rather than calling the Fullscreen API — a TV WebView may not implement that
 API, and entering full screen must not depend on it. Entering pushes a history entry, so the
 remote's Back button leaves full screen rather than the app.
+
+**Multiview.** Up to four live channels at once. **⊞ Multiview** beside the title turns the
+player into a two-column grid (the channel already playing becomes the first tile); picking a
+channel from the list then adds it, and once all four are filled it replaces the tile that has
+the sound. Only the selected tile — blue border, 🔊 — is unmuted: click it, or on a remote
+move to it and press **OK**. **OK** again (or a double-click) makes the whole grid full screen,
+where the arrow keys move the sound between pictures. **✕ Remove tile** drops the selected
+one; **Exit multiview** goes back to a single player carrying on with the channel you were
+listening to. Picking a movie or episode leaves multiview.
+
+Every tile is its own stream, so it is **one connection on your line each**. The panel's
+`max_connections` is shown under the title, and a tile past that limit says so when the
+provider refuses it. Tiles use a trimmed version of the buffering profile (at most 20 s ahead,
+30 MB each, HLS capped to the tile's size), because four full buffers is enough to run a Fire
+TV stick out of memory. Cheaper sticks may also run out of hardware video decoders before
+four — if the third or fourth tile stays black, that is the device, not the stream.
 
 **Resume.** Movies and episodes remember where you stopped, and jump back there with a
 "Resumed from 12:34" toast. Positions under 30 seconds are ignored and anything past 95 % is

@@ -112,6 +112,14 @@
         <div id="stats" class="stats" hidden></div>
       </div>
 
+      <div id="multiview" class="mv-grid" data-tiles="0" hidden>
+        <button id="mv-add" class="mv-add" type="button">
+          <span class="mv-plus" aria-hidden="true">＋</span>
+          <span>Add a channel</span>
+          <span id="mv-add-note" class="small"></span>
+        </button>
+      </div>
+
       <div class="now">
         <div class="now-head">
           <img id="now-logo" alt="" hidden />
@@ -122,6 +130,8 @@
           <div class="now-actions">
             <button id="playpause" class="ghost">⏸ Pause</button>
             <button id="fullscreen" class="ghost">⤢ Full screen</button>
+            <button id="mv-toggle" class="ghost" title="Watch up to four channels at once">⊞ Multiview</button>
+            <button id="mv-remove" class="ghost" hidden>✕ Remove tile</button>
             <button id="fav-toggle" class="ghost" hidden>☆ Favourite</button>
             <button id="copy-url" class="ghost" hidden>Copy direct URL</button>
           </div>
