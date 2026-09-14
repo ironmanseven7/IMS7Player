@@ -22,7 +22,7 @@ const { URL } = require('url');
 // Bump together with CLIENT_VERSION in public/app.js whenever routes change.
 // The page is served fresh from disk on every request, so a long-running process
 // can end up older than the page it is serving; the app compares these and says so.
-const VERSION = '1.10.3';
+const VERSION = '1.10.4';
 
 const PORT = Number(process.env.PORT) || 8787;
 const BIND = process.env.BIND || '127.0.0.1';
@@ -568,7 +568,23 @@ server.on('error', (err) => {
     let body = '';
     res.on('data', (c) => (body += c));
     res.on('end', () => {
-      if (body.includes('"ok":true')) {
+      let running = null;
+      try {
+        running = JSON.parse(body);
+      } catch {}
+      if (running?.ok && running.version !== VERSION) {
+        // The usual way an update "doesn't show up": the new download is run
+        // while the old window is still open, so the old copy keeps serving
+        // the old pages. Say so loudly instead of quietly deferring to it.
+        console.log('\n  ============================================================');
+        console.log(`   An OLDER copy of the player (${running.version || 'unknown version'}) is still running.`);
+        console.log(`   This download is version ${VERSION}, but your browser is being`);
+        console.log('   given the old one.');
+        console.log('');
+        console.log('   Close the other "Xtream Web Player" window, then run');
+        console.log('   Start Player again.');
+        console.log('  ============================================================\n');
+      } else if (running?.ok) {
         console.log(`\n  The player is already running at  http://${BIND}:${PORT}`);
         console.log('  Nothing to do - just open that address in your browser.');
         console.log('  (To restart it, close the other window first.)\n');
