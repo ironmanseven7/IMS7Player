@@ -358,8 +358,10 @@ button, input, select { font: inherit; color: inherit; }
 
 .stats {
   position: absolute;
+  /* Top corner, not bottom: down there it covered the player's own volume
+     and full-screen buttons, whose height differs between browsers. */
   right: 8px;
-  bottom: 46px;
+  top: 8px;
   padding: 3px 9px;
   background: rgba(4, 8, 13, .78);
   border: 1px solid var(--line);
@@ -733,7 +735,7 @@ body.tv .list.grid { grid-template-columns: repeat(auto-fill, minmax(186px, 1fr)
 body.tv .card-title { font-size: 15px; }
 body.tv .card-meta { font-size: 13px; }
 body.tv .now-head h2 { font-size: 22px; }
-body.tv .stats { font-size: 13px; bottom: 54px; }
+body.tv .stats { font-size: 13px; }
 
 /* On a remote there is no cursor, so focus has to be loud. */
 body.tv .item:focus, body.tv .item.focused,
@@ -789,7 +791,7 @@ body.video-full #video {
   object-fit: contain;
   background: #000;
 }
-body.video-full .stats { bottom: 18px; right: 18px; }
+body.video-full .stats { top: 18px; right: 18px; }
 
 /* The player is a focus target in its own right, so OK can act on it. */
 #video:focus, #video.focused {
