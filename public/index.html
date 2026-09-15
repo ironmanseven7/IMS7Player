@@ -53,6 +53,15 @@
 
 <!-- ── App ───────────────────────────────────────────────── -->
 <div id="app" hidden>
+  <div id="update-bar" class="update-bar" role="status" hidden>
+    <span id="update-text"></span>
+    <span class="update-actions">
+      <button id="update-now" class="ghost" type="button">Update now</button>
+      <button id="update-later" class="ghost" type="button">Later</button>
+      <label class="update-auto"><input id="update-auto" type="checkbox" /> Update automatically</label>
+    </span>
+  </div>
+
   <header class="topbar">
     <div class="brand"><img src="/brand/logo-64.png" alt="" class="brand-mark" /><span class="brand-text">IMS7<span>Player</span></span></div>
     <nav class="tabs">

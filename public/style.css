@@ -1010,3 +1010,52 @@ body.video-full.mv-wide .mv-grid:not([data-tiles="1"]) .mv-tile { grid-column: 2
 body.video-full.mv-wide .mv-grid:not([data-tiles="1"]) .mv-tile.selected { grid-column: 1; grid-row: 1 / span 3; }
 /* The big picture already says which one has sound; its border would just frame the screen. */
 body.video-full.mv-wide .mv-grid:not([data-tiles="1"]) .mv-tile.selected::after { display: none; }
+
+/* ── updates ────────────────────────────────────────────────
+   In the page flow above the top bar, not floating, so it never covers
+   anything - and a remote can reach it with Up from the top bar. */
+.update-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 10px 16px;
+  background: var(--accent-dim);
+  border-bottom: 1px solid var(--accent);
+  flex: 0 0 auto;
+  font-size: 13px;
+}
+#update-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+#update-text .muted { color: #b9d3f5; }
+.update-notes { flex-basis: 100%; color: #d5e3f5; font-size: 12px; }
+.update-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+#update-now, #update-check.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06101f;
+  font-weight: 600;
+}
+.update-auto { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+
+.update-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.update-settings .muted { flex: 1 1 260px; }
+
+body.tv .update-bar { padding: 14px 4vw; font-size: 17px; }
+body.tv .update-auto, body.tv .update-notes { font-size: 15px; }
+body.tv .update-settings { font-size: 16px; }
+body.tv .update-auto:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+body.phone .update-bar { padding: 10px 12px; }

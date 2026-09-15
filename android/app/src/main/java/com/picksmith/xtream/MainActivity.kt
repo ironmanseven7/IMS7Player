@@ -46,6 +46,7 @@ class MainActivity : Activity() {
         voiceBridge = bridge
         webView.addJavascriptInterface(bridge, "AndroidVoice")
         webView.addJavascriptInterface(PlatformBridge(this), "AndroidPlatform")
+        webView.addJavascriptInterface(UpdateBridge(this, webView), "AndroidUpdate")
 
         setContentView(webView)
 
@@ -80,14 +81,14 @@ class MainActivity : Activity() {
     private fun startProxy(): LocalProxyServer {
         for (port in 8787..8796) {
             try {
-                val s = LocalProxyServer(assets, port)
+                val s = LocalProxyServer(applicationContext, port)
                 s.start(NanoTimeout, false)
                 return s
             } catch (e: java.io.IOException) {
                 // port busy - try the next
             }
         }
-        val fallback = LocalProxyServer(assets, 0)
+        val fallback = LocalProxyServer(applicationContext, 0)
         fallback.start(NanoTimeout, false)
         return fallback
     }

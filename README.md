@@ -188,6 +188,44 @@ four — if the third or fourth tile stays black, that is the device, not the st
 treated as finished and cleared. Movie rows show a thin progress bar of how far you got. Live
 TV is excluded. Positions are stored per browser (or per app install), newest 300 kept.
 
+## Updates
+
+Both versions check GitHub for a newer release eight seconds after signing in and every six
+hours after that. When there is one, a banner above the top bar offers **Update now**, **Later**
+and **Update automatically**. The same controls, plus **Check for updates**, are at the top of the
+**Diagnostics** panel. The first time someone opens this version they are asked once whether to
+turn automatic updates on. Automatic updates never cut off something playing: they wait until
+nothing has played for a minute.
+
+`version.json` is what they compare against. The workflow refuses to build if it disagrees with
+`CLIENT_VERSION`, `server.js`'s `VERSION` or the Gradle `versionName` / `versionCode`, so bump all
+of them together.
+
+**Web version.** The local server fetches `server.js`, `package.json`, `version.json` and
+`public/` from one exact commit, checks every file against the git hash GitHub lists for it,
+writes them over its own folder only once all have arrived, and restarts itself in the same
+window. `Start Player.bat` is never replaced, since people edit it. A copy that is a git checkout
+(has a `.git` folder) will not update itself — use `git pull`.
+
+**Android app.** Most releases only change `public/`, and those install silently, with no
+reinstall: the files are downloaded into app storage and served in place of the APK's own.
+`minApkForWeb` in `version.json` marks a release whose page needs newer native code; that one is
+offered as an APK instead, which downloads in the app and opens Android's installer (a person has
+to confirm — no app can install itself silently). The APK is only offered once CI has published it,
+because the workflow uploads `version.json` next to it.
+
+### The signing key
+
+Android installs an update only over an app signed with the **same key**. The SDK's debug key is
+generated fresh on every CI machine, so every build before 1.11.0 was signed with a different
+random key, and none could update another. Builds are now signed with a permanent key held in two
+repository secrets, `SIGNING_KEYSTORE_B64` and `SIGNING_STORE_PASSWORD`. Without them the build
+still runs but is not published.
+
+Moving to the permanent key means **everyone with an older copy of the Android app has to uninstall
+it and install it again, once**. After that, updates install over the top. Keep a backup of the key:
+if it is lost, the next build is a different app again.
+
 ## Sharing the web version
 
 The web player is not a file you can send. It needs `server.js` running somewhere, because

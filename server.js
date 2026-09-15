@@ -17,12 +17,14 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const { spawn } = require('child_process');
 const { URL } = require('url');
 
 // Bump together with CLIENT_VERSION in public/app.js whenever routes change.
 // The page is served fresh from disk on every request, so a long-running process
 // can end up older than the page it is serving; the app compares these and says so.
-const VERSION = '1.10.5';
+const VERSION = '1.11.0';
 
 const PORT = Number(process.env.PORT) || 8787;
 const BIND = process.env.BIND || '127.0.0.1';
@@ -527,6 +529,169 @@ ${wrong ? '<div class="bad">That passcode did not match.</div>' : ''}
   res.end(body);
 }
 
+/* ── updates ───────────────────────────────────────────────────
+ * The web version is a folder someone downloaded once, so it has no other way to
+ * hear about releases. version.json on GitHub says what is current. Applying an
+ * update fetches the player's files from one exact commit, checks each against
+ * the git hash GitHub lists for it, writes them over this copy only once every
+ * file has arrived intact, and restarts. Start Player.bat is never replaced -
+ * people edit it to set a passcode.
+ */
+
+const UPDATE_REPO = process.env.IMS7_UPDATE_REPO || 'ironmanseven7/IMS7Player';
+const UPDATE_API = process.env.IMS7_UPDATE_API || 'https://api.github.com';
+const UPDATE_RAW = process.env.IMS7_UPDATE_RAW || 'https://raw.githubusercontent.com';
+const isPlayerFile = (p) => p === 'server.js' || p === 'package.json' || p === 'version.json' || p.startsWith('public/');
+
+/** True when a is a later dotted version than b. */
+function newerVersion(a, b) {
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d > 0;
+  }
+  return false;
+}
+
+async function fetchBuffer(url, accept) {
+  // GitHub's API refuses requests without a user-agent.
+  const headers = { 'user-agent': `IMS7-Player/${VERSION}` };
+  if (accept) headers.accept = accept;
+  const { res } = await upstream(url, { headers, timeoutMs: 20000 });
+  const body = await readBody(res);
+  if (res.statusCode !== 200) throw new Error(`${new URL(url).host} answered HTTP ${res.statusCode}`);
+  return body;
+}
+
+const fetchJson = async (url, accept) => JSON.parse((await fetchBuffer(url, accept)).toString('utf8'));
+
+let updateCache = null;
+
+async function latestRelease(force) {
+  if (!force && updateCache && Date.now() - updateCache.at < 10 * 60 * 1000) return updateCache.info;
+  const info = await fetchJson(`${UPDATE_RAW}/${UPDATE_REPO}/main/version.json?t=${Date.now()}`);
+  updateCache = { at: Date.now(), info };
+  return info;
+}
+
+/** Why this copy cannot update itself, or '' if it can. */
+function updateBlocker() {
+  if (fs.existsSync(path.join(__dirname, '.git'))) {
+    return 'This copy is a git checkout, so it is updated with git rather than from inside the player.';
+  }
+  try {
+    fs.accessSync(__dirname, fs.constants.W_OK);
+  } catch {
+    return 'The player folder is read-only, so it cannot update itself.';
+  }
+  return '';
+}
+
+async function handleUpdateStatus(res, url) {
+  try {
+    const latest = await latestRelease(url.searchParams.has('force'));
+    const blocker = updateBlocker();
+    sendJson(res, 200, {
+      platform: 'web',
+      current: VERSION,
+      latest: latest.version,
+      notes: latest.notes || '',
+      available: newerVersion(latest.version, VERSION),
+      kind: 'web',
+      canApply: !blocker,
+      reason: blocker,
+    });
+  } catch (err) {
+    sendJson(res, 502, { error: 'Could not check for updates', detail: String(err.message || err) });
+  }
+}
+
+let updating = false;
+
+async function handleUpdateApply(req, res) {
+  // A custom header makes a cross-site POST a preflighted request, which this
+  // server never approves - so another website cannot set off an update.
+  if (req.method !== 'POST' || req.headers['x-ims7-update'] !== '1') {
+    return sendJson(res, 400, { error: 'Bad update request' });
+  }
+  const blocker = updateBlocker();
+  if (blocker) return sendJson(res, 409, { error: 'This copy cannot update itself', detail: blocker });
+  if (updating) return sendJson(res, 409, { error: 'An update is already running' });
+  updating = true;
+
+  const written = [];
+  try {
+    const gh = 'application/vnd.github+json';
+    const { sha } = await fetchJson(`${UPDATE_API}/repos/${UPDATE_REPO}/commits/main`, gh);
+    const tree = await fetchJson(`${UPDATE_API}/repos/${UPDATE_REPO}/git/trees/${sha}?recursive=1`, gh);
+    if (tree.truncated) throw new Error('GitHub sent a partial file list');
+    const blobs = tree.tree.filter((t) => t.type === 'blob' && isPlayerFile(t.path));
+    for (const needed of ['server.js', 'version.json', 'public/index.html']) {
+      if (!blobs.some((b) => b.path === needed)) throw new Error(`The release is missing ${needed}`);
+    }
+
+    // Download everything before touching the disk.
+    const files = [];
+    for (let i = 0; i < blobs.length; i += 6) {
+      files.push(...(await Promise.all(blobs.slice(i, i + 6).map(async (b) => {
+        const rawPath = b.path.split('/').map(encodeURIComponent).join('/');
+        const data = await fetchBuffer(`${UPDATE_RAW}/${UPDATE_REPO}/${sha}/${rawPath}`);
+        const gitSha = crypto.createHash('sha1').update(`blob ${data.length}\0`).update(data).digest('hex');
+        if (gitSha !== b.sha) throw new Error(`${b.path} did not match GitHub's checksum`);
+        return { path: b.path, data };
+      }))));
+    }
+
+    const next = JSON.parse(files.find((f) => f.path === 'version.json').data.toString('utf8'));
+    if (!newerVersion(next.version, VERSION)) {
+      throw new Error(`GitHub has version ${next.version}, which is not newer than ${VERSION}`);
+    }
+
+    for (const f of files) {
+      const dest = path.join(__dirname, ...f.path.split('/'));
+      if (!dest.startsWith(__dirname + path.sep)) throw new Error(`Refusing to write ${f.path}`);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest + '.ims7new', f.data);
+      written.push(dest);
+    }
+    for (const dest of written) fs.renameSync(dest + '.ims7new', dest);
+    written.length = 0;
+
+    logLine(`UPDATE  ${VERSION} -> ${next.version} (${files.length} files from ${sha.slice(0, 7)}), restarting`);
+    sendJson(res, 200, { ok: true, from: VERSION, to: next.version, files: files.length });
+    setTimeout(restartSelf, 300);
+  } catch (err) {
+    for (const dest of written) fs.rmSync(dest + '.ims7new', { force: true });
+    updating = false;
+    logLine(`UPDATE FAIL  ${err.message || err}`);
+    sendJson(res, 502, { error: 'The update did not complete', detail: String(err.message || err) });
+  }
+}
+
+/**
+ * Swap to the new server.js: stop listening, run it as a child in this same
+ * console window (a detached process would need a window of its own on
+ * Windows), and stay alive only to pass on its exit code.
+ */
+function restartSelf() {
+  let started = false;
+  const start = () => {
+    if (started) return;
+    started = true;
+    const child = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
+      cwd: __dirname,
+      stdio: 'inherit',
+      env: { ...process.env, IMS7_RESTARTED: '1' },
+    });
+    child.on('exit', (code) => process.exit(code ?? 0));
+    process.on('SIGINT', () => {});   // Ctrl+C reaches the child too; leave when it does
+  };
+  server.close(start);
+  server.closeAllConnections?.();
+  setTimeout(start, 3000);            // a connection that will not close must not block the update
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
@@ -552,16 +717,26 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/apk') return serveApk(req, res);
   if (url.pathname === '/log') return sendJson(res, 200, { lines: recentLog });
   if (url.pathname === '/health') return sendJson(res, 200, { ok: true, version: VERSION });
+  if (url.pathname === '/update/status') return void handleUpdateStatus(res, url);
+  if (url.pathname === '/update/apply') return void handleUpdateApply(req, res);
   return serveStatic(req, res, url);
 });
 
 server.on('clientError', (_err, socket) => socket.destroy());
+
+let listenRetries = 0;
 
 /** Someone already owns the port. Work out whether it's another copy of this player. */
 server.on('error', (err) => {
   if (err.code !== 'EADDRINUSE') {
     console.error(`\n  Could not start: ${err.message}\n`);
     process.exit(1);
+  }
+
+  // Straight after an update the old process may not have let go of the port yet.
+  if (process.env.IMS7_RESTARTED && listenRetries++ < 20) {
+    setTimeout(() => server.listen(PORT, BIND), 250);
+    return;
   }
 
   const req = http.get({ host: BIND, port: PORT, path: '/health', timeout: 2000 }, (res) => {
@@ -625,4 +800,16 @@ server.listen(PORT, BIND, () => {
   }
   console.log('  Enter your panel URL, username and password in the browser.');
   console.log('  Credentials are never stored on this server.\n');
+
+  if (process.env.IMS7_RESTARTED) {
+    console.log(`  Updated - now running version ${VERSION}.\n`);
+  } else if (!updateBlocker()) {
+    latestRelease()
+      .then((l) => {
+        if (newerVersion(l.version, VERSION)) {
+          console.log(`  Update available: version ${l.version}. Open the player to install it.\n`);
+        }
+      })
+      .catch(() => {});
+  }
 });

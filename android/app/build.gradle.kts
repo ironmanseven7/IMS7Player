@@ -13,16 +13,39 @@ android {
         // and every current Android TV box.
         minSdk = 26
         targetSdk = 34
-        versionCode = 12
-        versionName = "1.10.5"
+        versionCode = 13
+        versionName = "1.11.0"
+    }
+
+    // The permanent key, handed to CI builds from repository secrets. Android
+    // installs an update only over an app signed with the same key, and the SDK's
+    // own debug key is generated afresh on every CI machine - so without this,
+    // every build was a different app as far as updating is concerned.
+    val ims7Keystore = System.getenv("IMS7_KEYSTORE")
+    signingConfigs {
+        if (ims7Keystore != null) {
+            create("ims7") {
+                storeFile = file(ims7Keystore)
+                storePassword = System.getenv("IMS7_KEYSTORE_PASSWORD")
+                keyAlias = "ims7"
+                keyPassword = System.getenv("IMS7_KEYSTORE_PASSWORD")
+                storeType = "pkcs12"
+            }
+        }
     }
 
     buildTypes {
+        getByName("debug") {
+            if (ims7Keystore != null) signingConfig = signingConfigs.getByName("ims7")
+        }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (ims7Keystore != null) "ims7" else "debug")
         }
     }
+
+    // WebUpdates and UpdateBridge compare against versionName / versionCode.
+    buildFeatures { buildConfig = true }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -34,6 +57,8 @@ android {
 dependencies {
     implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // FileProvider, to hand a downloaded update to the system installer.
+    implementation("androidx.core:core:1.13.1")
 }
 
 /**

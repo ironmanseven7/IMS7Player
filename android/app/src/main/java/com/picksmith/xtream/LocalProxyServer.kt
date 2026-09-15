@@ -1,6 +1,6 @@
 package com.picksmith.xtream
 
-import android.content.res.AssetManager
+import android.content.Context
 import fi.iki.elonen.NanoHTTPD
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -25,10 +25,16 @@ import java.util.concurrent.TimeUnit
  * /stream will only relay to a host the app has actually logged into, so another app
  * on the device cannot use it as a general-purpose proxy.
  */
-class LocalProxyServer(private val assets: AssetManager, port: Int) : NanoHTTPD("127.0.0.1", port) {
+class LocalProxyServer(context: Context, port: Int) : NanoHTTPD("127.0.0.1", port) {
+
+    private val assets = context.assets
+
+    /** Page files downloaded by an in-app update, served ahead of the APK's own. */
+    private val updates = WebUpdates(context)
 
     companion object {
-        const val VERSION = "1.9.0"
+        // From the build, so it cannot drift from versionName the way a copy did.
+        val VERSION: String get() = BuildConfig.VERSION_NAME
         private val PANEL_STATUS_HINTS = mapOf(
             511 to "The panel wants credentials it did not get (HTTP 511). Check the username and password.",
             512 to "The panel rejected this line (HTTP 512). Usually a wrong username/password, an expired " +
@@ -99,7 +105,14 @@ class LocalProxyServer(private val assets: AssetManager, port: Int) : NanoHTTPD(
 
     override fun serve(session: IHTTPSession): Response = try {
         when (session.uri) {
-            "/health" -> json(200, JSONObject().put("ok", true).put("version", VERSION))
+            "/health" -> json(200, JSONObject().put("ok", true).put("version", VERSION)
+                .put("webVersion", updates.webVersion()))
+            "/update/status" -> try {
+                json(200, updates.status())
+            } catch (e: Exception) {
+                error(502, "Could not check for updates", e.message ?: e.toString())
+            }
+            "/update/apply" -> handleUpdateApply(session)
             "/log" -> json(200, JSONObject().put("lines",
                 org.json.JSONArray(synchronized(recentLog) { recentLog.toList() })))
             "/api" -> handleApi(session)
@@ -325,19 +338,40 @@ class LocalProxyServer(private val assets: AssetManager, port: Int) : NanoHTTPD(
         }
     }
 
+    // ── in-app update of the page files ─────────────────────────────────────
+
+    private fun handleUpdateApply(session: IHTTPSession): Response {
+        // Same guard as the desktop server: a custom header cannot be sent
+        // cross-site without a preflight, which this server never approves.
+        if (session.method != Method.POST || session.headers["x-ims7-update"] != "1") {
+            return error(400, "Bad update request")
+        }
+        return try {
+            val result = updates.apply()
+            logLine("UPDATE page files ${result.optString("from")} -> ${result.optString("to")} (${result.optInt("files")} files)")
+            json(200, result)
+        } catch (e: Exception) {
+            logLine("UPDATE FAIL ${e.message}")
+            error(502, "The update did not complete", e.message ?: e.toString())
+        }
+    }
+
     // ── static files (the same public/ folder as the desktop build) ──────────
 
     private fun serveAsset(uri: String): Response {
-        val path = "www/" + (if (uri == "/") "index.html" else uri.trimStart('/'))
+        val rel = if (uri == "/") "index.html" else uri.trimStart('/')
         return try {
-            val bytes = assets.open(path).readBytes()
-            val ext = path.substringAfterLast('.', "")
+            val bytes = updates.overrideFile(rel)?.readBytes() ?: assets.open("www/$rel").readBytes()
+            val ext = rel.substringAfterLast('.', "")
             newFixedLengthResponse(
                 status(200),
                 MIME_TYPES[ext] ?: "application/octet-stream",
                 ByteArrayInputStream(bytes),
                 bytes.size.toLong()
-            )
+            ).apply {
+                // Revalidate every time, or an update can leave the WebView on the old page.
+                addHeader("Cache-Control", "no-cache")
+            }
         } catch (e: Exception) {
             newFixedLengthResponse(status(404), "text/plain", "Not found")
         }

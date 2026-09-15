@@ -6,6 +6,11 @@ android/local.properties
 *.apk
 *.aab
 
+# Signing keys live in repository secrets, never in the repo
+*.p12
+*.jks
+*.keystore
+
 # Generated at build time from public/ - not a second source of truth
 android/app/src/main/assets/
 

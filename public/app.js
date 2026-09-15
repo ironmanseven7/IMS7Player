@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.10.5';
+const CLIENT_VERSION = '1.11.0';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -335,6 +335,7 @@ async function connect(creds) {
 
   $('#login').hidden = true;
   $('#app').hidden = false;
+  startUpdateChecks();
   await loadSection('live');
 }
 
@@ -936,6 +937,9 @@ $('#buffer-mode').addEventListener('change', (e) => {
 
 /** Warn up front if the running process is older than the page it just served. */
 async function checkServerVersion() {
+  // After an in-app update the Android app runs newer page files than its
+  // native side, which is expected - and it has no terminal to restart anyway.
+  if (window.AndroidPlatform) return;
   try {
     const res = await fetch('/health');
     const data = await res.json();
@@ -1112,6 +1116,23 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
+  // The update banner and the diagnostics panel sit outside the three columns;
+  // without this the arrows would skip straight past their buttons.
+  const overlay = ['#diag-panel', '#update-bar'].map((s) => $(s))
+    .find((el) => !el.hidden && el.contains(document.activeElement));
+  if (overlay && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    e.preventDefault();
+    if (overlay.id === 'update-bar' && e.key === 'ArrowDown') {
+      focusTopbar(false);
+      return;
+    }
+    const items = focusablesIn('#' + overlay.id);
+    const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
+    const next = items[items.indexOf(document.activeElement) + step];
+    if (next) focusEl(next);
+    return;
+  }
+
   const isFull = document.body.classList.contains('video-full');
 
   // In full screen there is nothing to focus, so OK and Escape must work no
@@ -1164,7 +1185,10 @@ document.addEventListener('keydown', (e) => {
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      return;                            // already at the top
+      // The update banner, when showing, is the only thing above the top bar.
+      const bar = focusablesIn('#update-bar');
+      if (bar.length) focusEl(bar[0]);
+      return;
     }
     const next = items[at + (e.key === 'ArrowRight' ? 1 : -1)];
     if (next) {
@@ -1491,8 +1515,12 @@ async function showDiagnostics() {
     `<div class="diag-head"><b>Diagnostics</b>
        <span class="muted small">player ${esc(health.version || '?')} · page ${esc(CLIENT_VERSION)} · ${esc(state.platform || '?')}${window.AndroidPlatform ? ' (app)' : ''}</span>
        <button id="diag-close" class="ghost">Close</button></div>
+     <div id="update-settings" class="update-settings"></div>
      <div class="diag-body">${body}</div>`;
   $('#diag-close').addEventListener('click', () => (panel.hidden = true));
+  renderUpdateSettings();
+  if (!updates.info) runUpdateCheck();
+  if (state.platform === 'tv') focusEl($('#update-check') || $('#diag-close'));
 }
 
 $('#diag').addEventListener('click', showDiagnostics);
@@ -2071,3 +2099,303 @@ $('#mv-add').addEventListener('click', async () => {
   if (state.platform === 'phone') $('.items').scrollIntoView({ behavior: 'smooth', block: 'start' });
   else focusPane(1);
 });
+
+/* ── updates ──────────────────────────────────────────────────
+ * Both builds answer /update/status. The desktop server rewrites its own folder
+ * and restarts; the Android app swaps in new page files without a reinstall, and
+ * hands an APK to the system installer only when native code changed.
+ * Automatic mode never cuts off something that is playing.
+ */
+
+const AUTO_UPDATE_KEY = 'xtream.autoUpdate';
+const AUTO_ASKED_KEY = 'xtream.autoUpdateAsked';
+const UPDATE_EVERY = 6 * 60 * 60 * 1000;
+
+function readPref(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+const updates = {
+  info: null,
+  error: null,
+  busy: false,
+  dismissed: null,          // the version someone said "Later" to
+
+  auto: () => readPref(AUTO_UPDATE_KEY) === '1',
+
+  setAuto(on) {
+    try {
+      localStorage.setItem(AUTO_UPDATE_KEY, on ? '1' : '0');
+      localStorage.setItem(AUTO_ASKED_KEY, '1');
+    } catch {}
+  },
+
+  async check(force = false) {
+    try {
+      const { res, data } = await localJson('/update/status' + (force ? '?force=1' : ''));
+      if (!res.ok) throw Object.assign(new Error(data?.error || 'Could not check for updates'), { detail: data?.detail || '' });
+      this.info = data;
+      this.error = null;
+      return data;
+    } catch (ex) {
+      this.error = ex;
+      throw ex;
+    }
+  },
+
+  async apply() {
+    const info = this.info;
+    if (!info?.available || !info.canApply || this.busy) return;
+    if (info.kind === 'apk') return this.installApk();
+
+    this.busy = true;
+    updateBar.progress(`Updating to version ${info.latest}…`);
+    try {
+      const res = await fetch('/update/apply', { method: 'POST', headers: { 'x-ims7-update': '1' } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw Object.assign(new Error(data.error || `Update failed (HTTP ${res.status})`), { detail: data.detail || '' });
+      if (info.platform === 'web') {
+        updateBar.progress(`Restarting the player on version ${data.to}…`);
+        await waitForVersion(data.to);
+      }
+      location.reload();
+    } catch (ex) {
+      this.busy = false;
+      updateBar.error(ex);
+    }
+  },
+
+  installApk() {
+    if (!window.AndroidUpdate) {
+      updateBar.error(new Error('This copy of the app is too old to install updates itself. Reinstall it from Downloader.'));
+      return;
+    }
+    this.busy = true;
+    updateBar.progress('Downloading the app update…');
+    window.AndroidUpdate.downloadAndInstall();
+  },
+};
+
+/** The desktop server restarts itself after updating; wait for the new process to answer. */
+async function waitForVersion(version) {
+  const until = Date.now() + 60000;
+  while (Date.now() < until) {
+    await new Promise((r) => setTimeout(r, 1000));
+    try {
+      const data = await (await fetch('/health', { cache: 'no-store' })).json();
+      if (data.version === version) return;
+    } catch {
+      /* still restarting */
+    }
+  }
+  throw new Error('The player did not come back after updating. Close its window and run Start Player again.');
+}
+
+// Called by the Android app's UpdateBridge.
+window.onApkProgress = (pct) => updateBar.progress(`Downloading the app update… ${pct}%`);
+
+window.onApkResult = (code, detail) => {
+  updates.busy = false;
+  if (code === 'installing') {
+    updateBar.hide();
+    return;
+  }
+  const message = {
+    'up-to-date': 'You already have the newest app.',
+    'needs-permission': 'IMS7 Player needs permission to install updates. Allow it (on Fire TV: Settings → My Fire TV → ' +
+      'Developer options → Install unknown apps), then choose Install update again.',
+    'signature-mismatch': 'This update is signed differently from the app you have, so Android will not install it over ' +
+      'the top. Uninstall IMS7 Player and install it again from Downloader - this is needed once.',
+  }[code] || 'The app update could not be downloaded.';
+  updateBar.error(Object.assign(new Error(message), { detail: code === 'failed' ? detail : '' }));
+};
+
+/** Something on screen the viewer would notice being cut off. */
+function isWatching() {
+  if (mv.active && mv.tiles.length) return true;
+  return !!state.now && !$('#video').paused;
+}
+
+const updateBar = {
+  mode: null,
+
+  set({ text, now, later, auto }) {
+    $('#update-text').innerHTML = text;
+    $('#update-now').hidden = !now;
+    if (now) $('#update-now').textContent = now;
+    $('#update-later').hidden = !later;
+    if (later) $('#update-later').textContent = later;
+    $('#update-auto').closest('label').hidden = !auto;
+    $('#update-auto').checked = updates.auto();
+    $('#update-bar').hidden = false;
+  },
+
+  show(info) {
+    this.mode = 'update';
+    this.set({
+      text: `<b>Update available: version ${esc(info.latest)}</b><span class="muted">you have ${esc(info.current)}</span>` +
+        (info.notes ? `<span class="update-notes">${esc(info.notes)}</span>` : '') +
+        (!info.canApply && info.reason ? `<span class="update-notes">${esc(info.reason)}</span>` : ''),
+      now: info.canApply ? (info.kind === 'apk' ? 'Install update' : 'Update now') : '',
+      later: 'Later',
+      auto: info.canApply,
+    });
+    this.focus();
+  },
+
+  offerAuto() {
+    this.mode = 'offer';
+    this.set({
+      text: '<b>IMS7 Player can now update itself.</b>' +
+        '<span class="muted">Turn on automatic updates? They only install when nothing is playing.</span>',
+      now: 'Turn on',
+      later: 'No thanks',
+    });
+    this.focus();
+  },
+
+  progress(text) {
+    this.mode = 'busy';
+    this.set({ text: `<b>${esc(text)}</b>` });
+  },
+
+  error(ex) {
+    this.mode = 'update';
+    this.set({
+      text: `<b>${esc(ex.message || ex)}</b>${ex.detail ? `<span class="update-notes">${esc(ex.detail)}</span>` : ''}`,
+      now: updates.info?.available && updates.info.canApply ? 'Try again' : '',
+      later: 'Close',
+    });
+    this.focus();
+  },
+
+  hide() {
+    this.mode = null;
+    $('#update-bar').hidden = true;
+  },
+
+  /** On a remote, move focus to the banner - unless that would disturb someone watching. */
+  focus() {
+    if (state.platform === 'tv' && !isWatching()) focusEl(focusablesIn('#update-bar')[0]);
+  },
+};
+
+$('#update-now').addEventListener('click', () => {
+  if (updateBar.mode === 'offer') {
+    updates.setAuto(true);
+    updateBar.hide();
+    toast('Automatic updates are on. You can change this in Diagnostics.');
+    runUpdateCheck();
+    return;
+  }
+  updates.apply();
+});
+
+$('#update-later').addEventListener('click', () => {
+  if (updateBar.mode === 'offer') updates.setAuto(false);
+  else if (updates.info?.available) updates.dismissed = updates.info.latest;
+  updateBar.hide();
+});
+
+$('#update-auto').addEventListener('change', (e) => {
+  updates.setAuto(e.target.checked);
+  renderUpdateSettings();
+  toast(e.target.checked ? 'Automatic updates are on.' : 'Automatic updates are off.');
+});
+
+async function runUpdateCheck({ force = false, fromUser = false } = {}) {
+  let info;
+  try {
+    info = await updates.check(force);
+  } catch (ex) {
+    renderUpdateSettings();
+    if (fromUser) throw ex;
+    return null;
+  }
+  renderUpdateSettings();
+  if (updates.busy) return info;
+
+  if (!info.available) {
+    // Ask once whether to update automatically, now that it is possible.
+    if (info.canApply && !readPref(AUTO_ASKED_KEY) && $('#update-bar').hidden) updateBar.offerAuto();
+    return info;
+  }
+  if (updates.auto() && info.canApply) {
+    waitThenUpdate();
+    return info;
+  }
+  if (fromUser || updates.dismissed !== info.latest) updateBar.show(info);
+  return info;
+}
+
+let updateWaiter = null;
+
+/**
+ * Apply an automatic update at the first quiet moment. Straight away if nothing
+ * has been opened; otherwise only after a minute with nothing playing, so a
+ * brief pause does not get the stream cut off.
+ */
+function waitThenUpdate() {
+  if (updateWaiter || updates.busy) return;
+  if (!isWatching() && !state.now) {
+    updates.apply();
+    return;
+  }
+  let quiet = 0;
+  updateWaiter = setInterval(() => {
+    quiet = isWatching() ? 0 : quiet + 1;
+    if (quiet < 2) return;
+    clearInterval(updateWaiter);
+    updateWaiter = null;
+    if (updates.auto() && updates.info?.available) updates.apply();
+  }, 30000);
+}
+
+function startUpdateChecks() {
+  if (startUpdateChecks.started) return;
+  startUpdateChecks.started = true;
+  setTimeout(() => runUpdateCheck(), 8000);   // after the channel list, not competing with it
+  setInterval(() => runUpdateCheck(), UPDATE_EVERY);
+}
+
+/** The Updates row at the top of the Diagnostics panel. */
+function renderUpdateSettings() {
+  const box = $('#update-settings');
+  if (!box) return;
+  const info = updates.info;
+  const focusedId = box.contains(document.activeElement) ? document.activeElement.id : null;
+
+  let line;
+  if (updates.error) line = `Could not check: ${updates.error.message}${updates.error.detail ? ' - ' + updates.error.detail : ''}`;
+  else if (!info) line = 'Checking…';
+  else if (info.available) line = `Version ${info.latest} is available.`;
+  else line = 'This is the newest version.';
+  if (info && !info.canApply && info.reason) line += ' ' + info.reason;
+
+  const canUpdate = !!(info?.available && info.canApply);
+  box.innerHTML = `<b>Updates</b>
+    <span class="muted small">Version ${esc(info?.current || CLIENT_VERSION)} · ${esc(line)}</span>
+    <button id="update-check" class="ghost${canUpdate ? ' primary' : ''}" type="button">${
+      canUpdate ? (info.kind === 'apk' ? 'Install update' : 'Update now') : 'Check for updates'}</button>
+    <label class="update-auto"><input id="update-auto-setting" type="checkbox" ${updates.auto() ? 'checked' : ''} /> Update automatically</label>`;
+
+  $('#update-check').addEventListener('click', async () => {
+    if (updates.info?.available && updates.info.canApply) {
+      updates.apply();
+      return;
+    }
+    $('#update-check').textContent = 'Checking…';
+    await runUpdateCheck({ force: true, fromUser: true }).catch(() => {});
+    if (updates.info && !updates.info.available && !updates.error) toast('You have the newest version.');
+  });
+  $('#update-auto-setting').addEventListener('change', (e) => {
+    updates.setAuto(e.target.checked);
+    toast(e.target.checked ? 'Automatic updates are on. They install only when nothing is playing.' : 'Automatic updates are off.');
+    if (e.target.checked && updates.info?.available) waitThenUpdate();
+  });
+  if (focusedId) focusEl(document.getElementById(focusedId));
+}

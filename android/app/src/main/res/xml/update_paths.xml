@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The only files handed to the system installer: downloaded app updates. -->
+<paths>
+    <cache-path name="updates" path="updates/" />
+</paths>

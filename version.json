@@ -1,0 +1,6 @@
+{
+  "version": "1.11.0",
+  "apkVersionCode": 13,
+  "minApkForWeb": 13,
+  "notes": "The player can now check for updates and install them itself, with an option to update automatically."
+}

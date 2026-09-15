@@ -17,6 +17,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The in-app updater trusts version.json, so a release where it disagrees
+      # with the code would offer an update that never arrives, or loop forever.
+      - name: Check the version numbers agree
+        run: |
+          node -e '
+            const fs = require("fs");
+            const v = JSON.parse(fs.readFileSync("version.json", "utf8"));
+            const grab = (file, re) => (fs.readFileSync(file, "utf8").match(re) || [])[1];
+            const found = {
+              "public/app.js CLIENT_VERSION": grab("public/app.js", /CLIENT_VERSION = .([\d.]+)./),
+              "server.js VERSION": grab("server.js", /const VERSION = .([\d.]+)./),
+              "build.gradle.kts versionName": grab("android/app/build.gradle.kts", /versionName = "([\d.]+)"/),
+            };
+            const code = Number(grab("android/app/build.gradle.kts", /versionCode = (\d+)/));
+            const bad = Object.entries(found).filter(([, x]) => x !== v.version).map(([k, x]) => k + " is " + x);
+            if (code !== v.apkVersionCode) bad.push("versionCode is " + code + " but apkVersionCode is " + v.apkVersionCode);
+            if (v.minApkForWeb > v.apkVersionCode) bad.push("minApkForWeb " + v.minApkForWeb + " is above apkVersionCode");
+            if (bad.length) {
+              console.log("::error title=Version numbers disagree::version.json says " + v.version + "; " + bad.join("; "));
+              process.exit(1);
+            }
+            console.log("All versions agree: " + v.version + " (versionCode " + code + ")");
+          '
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -36,14 +60,44 @@ jobs:
           # be the reason a build produces nothing.
           cache-disabled: true
 
+      # Android installs an update only over an app signed with the same key.
+      # The SDK's debug key is generated fresh on every CI machine, so the
+      # permanent key comes from repository secrets. Without it the build still
+      # runs (so compile errors show up) but is not published.
+      - name: Prepare the signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning title=No signing key::The SIGNING_KEYSTORE_B64 secret is not set, so this build uses a throwaway key and will not be published."
+            echo "HAS_KEY=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/ims7-signing.p12"
+          echo "IMS7_KEYSTORE=$RUNNER_TEMP/ims7-signing.p12" >> "$GITHUB_ENV"
+          echo "HAS_KEY=true" >> "$GITHUB_ENV"
+
       - name: Build debug APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon --stacktrace
+        env:
+          IMS7_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+        run: |
+          set -o pipefail
+          if ! gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee "$RUNNER_TEMP/build.log"; then
+            # Job logs need a GitHub login to read; annotations do not. Put the
+            # compiler's complaints where they can be seen.
+            msg=$(grep -E '^e: |error:|What went wrong|^> ' "$RUNNER_TEMP/build.log" | head -40 | sed -e 's/%/%25/g' | sed -e ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Gradle build failed::$msg"
+            exit 1
+          fi
 
       - name: Show what was built
         run: |
           echo "APKs produced:"
           find android/app/build/outputs -name '*.apk' -print -exec ls -lh {} \;
+          apk=$(ls android/app/build/outputs/apk/debug/*.apk | head -1)
+          cert=$("$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --print-certs "$apk" | grep -m1 'SHA-256' | sed 's/.*: //')
+          echo "::notice title=Signing certificate::SHA-256 $cert"
 
       - name: Upload APK as a run artifact
         uses: actions/upload-artifact@v4
@@ -56,13 +110,22 @@ jobs:
       # A release is easier to install from: a direct .apk link rather than a
       # zip, and the URL stays the same for every build. Deliberately NOT a
       # prerelease: GitHub excludes prereleases from /releases/latest/, which is
-      # exactly the URL people type into Downloader on a TV.
+      # exactly the URL people type into Downloader on a TV. version.json goes
+      # with it: the in-app updater reads it to know an APK is actually ready.
       - name: Publish to the "latest" release
+        if: env.HAS_KEY == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
           gh release create latest \
             android/app/build/outputs/apk/debug/*.apk \
+            version.json \
             --title "Latest build" \
             --notes "Debug APK built from ${{ github.sha }}"
+
+      - name: Refuse to finish without the signing key
+        if: env.HAS_KEY != 'true'
+        run: |
+          echo "::error title=Not published::Add the SIGNING_KEYSTORE_B64 and SIGNING_STORE_PASSWORD repository secrets, then re-run this workflow."
+          exit 1
