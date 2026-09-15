@@ -22,7 +22,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      # No android-actions/setup-android: GitHub's ubuntu runners already ship
+      # the Android SDK (ANDROID_HOME set, android-34 and build-tools 34.0.0
+      # included), and that action broke in September 2026 when Google moved
+      # the command-line tools download - it 404s even on v4
+      # (android-actions/setup-android#536). Relying on the runner's SDK means
+      # one less third-party download that can take the build down.
 
       - uses: gradle/actions/setup-gradle@v4
         with:
