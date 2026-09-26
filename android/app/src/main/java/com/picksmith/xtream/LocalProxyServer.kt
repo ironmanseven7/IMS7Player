@@ -42,6 +42,29 @@ class LocalProxyServer(context: Context, port: Int) : NanoHTTPD("127.0.0.1", por
             513 to "The panel says this line is already at its connection limit (HTTP 513).",
             521 to "The panel is blocking this IP or device (HTTP 521)."
         )
+        /**
+         * Some home networks answer for the panel rather than letting the request
+         * through. AT&T's ActiveArmor does it whenever a request carries a username
+         * and password to a host it has flagged, and the reply is a normal-looking
+         * web page - which otherwise reads as "wrong address" and sends people
+         * hunting for one that was right all along.
+         */
+        private val NETWORK_FILTERS = listOf(
+            Regex("myhomenetwork\\.att\\.com", RegexOption.IGNORE_CASE) to "AT&T's ActiveArmor / Internet Security",
+            Regex("opendns\\.com|phish-protect|block(ed)?page|blocked\\.(cgi|html)", RegexOption.IGNORE_CASE) to "a network filter",
+            Regex("fortiguard|forcepoint|barracuda|contentkeeper|websense", RegexOption.IGNORE_CASE) to "a network filter",
+            Regex("web page blocked|site blocked|this site is blocked", RegexOption.IGNORE_CASE) to "a network filter"
+        )
+
+        fun filterBlockHint(body: String): String? {
+            val who = NETWORK_FILTERS.firstOrNull { it.first.containsMatchIn(body) }?.second ?: return null
+            return "$who replaced the panel's answer with a block page, so this is your internet connection blocking " +
+                "the login, not the panel. It happens only when a request carries your username and password, which " +
+                "is why the address itself looks fine. Allow this address in your router or provider security " +
+                "settings, ask your IPTV provider for a different address, or try another network - a phone hotspot " +
+                "is a quick way to check."
+        }
+
         private val MIME_TYPES = mapOf(
             "html" to "text/html", "js" to "text/javascript", "css" to "text/css",
             "json" to "application/json", "svg" to "image/svg+xml", "png" to "image/png",
@@ -181,15 +204,21 @@ class LocalProxyServer(context: Context, port: Int) : NanoHTTPD("127.0.0.1", por
                 body.trimStart().startsWith("[")
             }
             if (!looksLikeJson) {
-                val hint = PANEL_STATUS_HINTS[it.code] ?: when {
+                val blocked = filterBlockHint(body)
+                val hint = blocked ?: PANEL_STATUS_HINTS[it.code] ?: when {
                     body.isBlank() -> "The panel answered HTTP ${it.code} with an empty body, so it is not " +
                         "serving the player API at this address."
                     body.contains("<html", true) -> "The panel answered HTTP ${it.code} with a web page, not " +
                         "API data - this is probably the customer portal rather than the API host."
                     else -> "HTTP ${it.code}: ${body.take(300)}"
                 }
-                logLine("API " + it.code + " no-api " + redact(url.toString()))
-                return error(502, "The panel did not return player API data", hint)
+                logLine("API " + it.code + (if (blocked != null) " network-filter block page " else " no-api ") + redact(url.toString()))
+                return error(
+                    502,
+                    if (blocked != null) "Your internet connection is blocking this login"
+                    else "The panel did not return player API data",
+                    hint
+                )
             }
             synchronized(knownHosts) { knownHosts.add(URI(origin).host) }
             logLine("API " + it.code + " " + body.length + "B " + redact(url.toString()))

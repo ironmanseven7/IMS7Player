@@ -1,6 +1,6 @@
 {
-  "version": "1.11.0",
-  "apkVersionCode": 13,
+  "version": "1.11.1",
+  "apkVersionCode": 14,
   "minApkForWeb": 13,
-  "notes": "The player can now check for updates and install them itself, with an option to update automatically."
+  "notes": "Says plainly when a home network's filter is blocking the login, instead of blaming the panel."
 }

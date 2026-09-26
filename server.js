@@ -24,7 +24,7 @@ const { URL } = require('url');
 // Bump together with CLIENT_VERSION in public/app.js whenever routes change.
 // The page is served fresh from disk on every request, so a long-running process
 // can end up older than the page it is serving; the app compares these and says so.
-const VERSION = '1.11.0';
+const VERSION = '1.11.1';
 
 const PORT = Number(process.env.PORT) || 8787;
 const BIND = process.env.BIND || '127.0.0.1';
@@ -248,6 +248,29 @@ async function handleStream(req, res, url) {
   req.on('close', () => up.destroy());
 }
 
+/**
+ * Some home networks answer for the panel rather than letting the request
+ * through. AT&T's ActiveArmor does it whenever a request carries a username and
+ * password to a host it has flagged, and the reply is a normal-looking HTML
+ * page - which otherwise reads as "the panel sent a web page" and sends people
+ * hunting for an address that was right all along.
+ */
+const NETWORK_FILTERS = [
+  [/myhomenetwork\.att\.com/i, "AT&T's ActiveArmor / Internet Security"],
+  [/opendns\.com|phish-protect|block(ed)?page|blocked\.(cgi|html)/i, 'a network filter'],
+  [/fortiguard|forcepoint|barracuda|contentkeeper|websense|k9webprotect/i, 'a network filter'],
+  [/web page blocked|site blocked|this site is blocked|access to this site/i, 'a network filter'],
+];
+
+function filterBlockHint(text) {
+  const hit = NETWORK_FILTERS.find(([re]) => re.test(text));
+  if (!hit) return '';
+  return `${hit[1]} replaced the panel's answer with a block page, so this is your internet connection blocking the ` +
+    'login, not the panel. It happens only when a request carries your username and password, which is why the address ' +
+    'itself looks fine. Allow this address in your router or provider security settings, ask your IPTV provider for a ' +
+    'different address, or use another network - a phone hotspot is a quick way to check.';
+}
+
 async function handleApi(req, res, url) {
   let origin;
   try {
@@ -299,14 +322,21 @@ async function handleApi(req, res, url) {
     JSON.parse(text);
   } catch {
     const code = up.statusCode;
+    const blocked = filterBlockHint(text);
     const hint = PANEL_STATUS_HINTS[code];
     let detail;
-    if (hint) detail = hint;
+    if (blocked) detail = blocked;
+    else if (hint) detail = hint;
     else if (!text.trim()) detail = `The panel answered HTTP ${code} with an empty body, so it is not serving the player API at this address. Check the host and port in your provider's M3U link.`;
     else if (/<html|<!doctype/i.test(text)) detail = `The panel answered HTTP ${code} with a web page, not API data - this address is probably the customer portal rather than the API host.`;
     else detail = `HTTP ${code}: ${text.slice(0, 300)}`;
 
-    return sendJson(res, 502, { error: 'The panel did not return player API data', status: code, detail });
+    if (blocked) logLine(`API  ${code}  network-filter block page  ${redact(target.toString())}`);
+    return sendJson(res, 502, {
+      error: blocked ? 'Your internet connection is blocking this login' : 'The panel did not return player API data',
+      status: code,
+      detail,
+    });
   }
 
   res.writeHead(up.statusCode || 200, {

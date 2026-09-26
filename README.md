@@ -410,9 +410,19 @@ and also on desktop, the **Diagnostics** button in the top bar shows the same lo
 | HTTP **512** | The panel rejected the line. Wrong username/password, expired, **or the line belongs to a different host/port than the one entered** |
 | HTTP **513** | Line is at its connection limit |
 | "answered with a web page" | That address is the customer portal, not the API host |
+| "Your internet connection is blocking this login" | A home-network filter replaced the panel's answer with a block page. See below |
 | "untrusted certificate" | Self-signed cert — restart with `XTREAM_INSECURE_TLS=1`, or use the `http://` address |
 | Live loads then stalls | Your line's max connections are in use elsewhere |
 | Movie plays audio, no video | MKV/HEVC container the browser can't decode — use VLC |
+
+**When the network is the problem.** Some home networks answer for the panel instead of letting
+the request through. AT&T's ActiveArmor / Internet Security does it to hosts it has flagged
+(often as "phishing"), and only when a request carries a username and password — so the address
+looks reachable, a request without credentials gets a normal `511`, and only signing in fails,
+with a 712-byte page pointing at `myhomenetwork.att.com`. The player recognises those pages and
+says so rather than blaming the panel. Fixes: allow the address in the router or provider's
+security settings, ask the IPTV provider for a different host, or use another network. A phone
+on mobile data is the quickest way to confirm it, since it bypasses the home network entirely.
 
 **Getting the right address.** The panel's own homepage is often *not* the API host. Take the
 M3U link your provider issued — it looks like
