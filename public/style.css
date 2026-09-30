@@ -359,8 +359,9 @@ button, input, select { font: inherit; color: inherit; }
 .stats {
   position: absolute;
   /* Top corner, not bottom: down there it covered the player's own volume
-     and full-screen buttons, whose height differs between browsers. */
-  right: 8px;
+     and full-screen buttons, whose height differs between browsers. Left,
+     because the "next episode" panel takes the top right. */
+  left: 8px;
   top: 8px;
   padding: 3px 9px;
   background: rgba(4, 8, 13, .78);
@@ -791,7 +792,7 @@ body.video-full #video {
   object-fit: contain;
   background: #000;
 }
-body.video-full .stats { top: 18px; right: 18px; }
+body.video-full .stats { top: 18px; left: 18px; }
 
 /* The player is a focus target in its own right, so OK can act on it. */
 #video:focus, #video.focused {
@@ -1059,3 +1060,43 @@ body.tv .update-auto, body.tv .update-notes { font-size: 15px; }
 body.tv .update-settings { font-size: 16px; }
 body.tv .update-auto:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
 body.phone .update-bar { padding: 10px 12px; }
+
+/* ── next episode ───────────────────────────────────────────
+   Sits over the picture at the end of an episode, clear of the browser's
+   own controls along the bottom. */
+.next-up {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  max-width: min(460px, 86%);
+  padding: 10px 12px;
+  background: rgba(4, 8, 13, .9);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  font-size: 13px;
+}
+#next-up-text { flex: 1 1 200px; min-width: 0; }
+.next-up-actions { display: flex; gap: 8px; }
+#next-up-play { background: var(--accent); border-color: var(--accent); color: #06101f; font-weight: 600; }
+
+.autonext {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.autonext input { width: auto; }
+
+body.tv .next-up { right: 3vw; top: 3vh; font-size: 17px; padding: 14px 16px; }
+body.tv .autonext { font-size: 16px; }
+body.tv .autonext:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+body.phone .next-up { left: 8px; right: 8px; top: 8px; max-width: none; font-size: 12px; }
+body.phone .stats { top: auto; bottom: 8px; }   /* the panel owns the top on a narrow screen */

@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.11.1';
+const CLIENT_VERSION = '1.11.2';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -638,38 +638,133 @@ function renderSeries(row, info) {
     return;
   }
 
+  // One flat list in running order, so "the next episode" carries on into the
+  // next season instead of stopping at a season boundary.
+  const items = [];
+  for (const s of seasons) {
+    for (const ep of eps[s] || []) {
+      items.push({
+        id: ep.id,
+        ext: ep.container_extension || 'mp4',
+        season: s,
+        num: ep.episode_num,
+        label: `S${s}E${ep.episode_num}${ep.title ? ' · ' + ep.title : ''}`,
+        title: `${row.name || ''} · S${s}E${ep.episode_num} ${ep.title || ''}`.trim(),
+      });
+    }
+  }
+  state.queue = { items, index: -1, logo: row.cover || row.stream_icon };
+
   const plot = info?.info?.plot ? `<p>${esc(info.info.plot)}</p>` : '';
+  let qi = 0;
   const html =
+    `<label class="autonext"><input id="autonext" type="checkbox" ${autoNext.on() ? 'checked' : ''} /> Autoplay next episode</label>` +
     plot +
     seasons
       .map((s) => {
         const list = (eps[s] || [])
-          .map(
-            (ep) =>
-              `<li><button class="episode" data-id="${esc(ep.id)}" data-ext="${esc(ep.container_extension || 'mp4')}" data-title="${esc(row.name || '')} · S${esc(s)}E${esc(ep.episode_num)} ${esc(ep.title || '')}">
+          .map((ep) => {
+            const idx = qi++;
+            return `<li><button class="episode" data-qi="${idx}">
                  <b>E${esc(ep.episode_num)}</b> ${esc(ep.title || 'Episode ' + ep.episode_num)}
-               </button></li>`
-          )
+               </button></li>`;
+          })
           .join('');
         return `<details class="season" ${s === seasons[0] ? 'open' : ''}><summary>Season ${esc(s)} <span class="muted small">${(eps[s] || []).length} episodes</span></summary><ul class="episodes">${list}</ul></details>`;
       })
       .join('');
 
   $('#now-detail').innerHTML = html;
+  $('#autonext').addEventListener('change', (e) => {
+    autoNext.set(e.target.checked);
+    toast(e.target.checked ? 'The next episode will play on its own.' : 'Autoplay off - episodes stop at the end.');
+    if (!e.target.checked) cancelNextUp();
+  });
   $('#now-detail')
     .querySelectorAll('.episode')
-    .forEach((b) =>
-      b.addEventListener('click', () => {
-        $('#now-detail').querySelectorAll('.episode').forEach((x) => x.classList.remove('playing'));
-        b.classList.add('playing');
-        play('series', b.dataset.id, b.dataset.ext, {
-          title: b.dataset.title,
-          logo: row.cover || row.stream_icon,
-          sub: 'Episode',
-          keepDetail: true,
-        });
-      })
-    );
+    .forEach((b) => b.addEventListener('click', () => playEpisode(Number(b.dataset.qi))));
+}
+
+/* ── autoplay the next episode ────────────────────────────────
+ * Series episodes are queued in running order when the list is built. When one
+ * ends the next is offered with a countdown, which anyone can stop - and which
+ * never runs for live TV or a film, where there is nothing to play next.
+ */
+
+const AUTONEXT_KEY = 'xtream.autoNext';
+const NEXT_UP_SECONDS = 10;
+
+const autoNext = {
+  on: () => readPref(AUTONEXT_KEY) !== '0',      // on unless it was turned off
+  set(v) {
+    try {
+      localStorage.setItem(AUTONEXT_KEY, v ? '1' : '0');
+    } catch {}
+  },
+};
+
+let nextUpTimer = null;
+
+function cancelNextUp() {
+  clearInterval(nextUpTimer);
+  nextUpTimer = null;
+  const panel = $('#next-up');
+  if (panel) panel.hidden = true;
+}
+
+/** Play one episode from the queue and mark it in the list. */
+function playEpisode(i) {
+  const q = state.queue;
+  const ep = q?.items[i];
+  if (!ep) return;
+  q.index = i;
+
+  const detail = $('#now-detail');
+  detail.querySelectorAll('.episode').forEach((x) => x.classList.toggle('playing', Number(x.dataset.qi) === i));
+  const btn = detail.querySelector(`.episode[data-qi="${i}"]`);
+  if (btn) {
+    btn.closest('details')?.setAttribute('open', '');   // the next episode may be in the next season
+    btn.scrollIntoView({ block: 'nearest' });
+  }
+
+  play('series', ep.id, ep.ext, {
+    title: ep.title,
+    logo: q.logo,
+    sub: `Season ${ep.season}, episode ${ep.num}`,
+    keepDetail: true,
+  });
+}
+
+function onEpisodeEnded() {
+  const q = state.queue;
+  if (!q || state.now?.kind !== 'series') return;
+  const index = q.index + 1;
+  const next = q.items[index];
+  if (!next) return;
+
+  const auto = autoNext.on();
+  let left = NEXT_UP_SECONDS;
+  const paint = () => {
+    $('#next-up-text').innerHTML =
+      `<b>Next: ${esc(next.label)}</b>` + (auto ? `<span class="muted"> playing in ${left}s</span>` : '');
+  };
+
+  paint();
+  $('#next-up').hidden = false;
+  $('#next-up-play').onclick = () => playEpisode(index);
+  $('#next-up-cancel').onclick = cancelNextUp;
+  if (state.platform === 'tv') focusEl($('#next-up-play'));
+
+  if (!auto) return;
+  nextUpTimer = setInterval(() => {
+    left -= 1;
+    if (left > 0) {
+      paint();
+      return;
+    }
+    cancelNextUp();
+    playEpisode(index);
+  }, 1000);
 }
 
 async function loadEpg(streamId) {
@@ -804,6 +899,7 @@ let playGen = 0;
 
 function play(kind, id, ext, meta = {}) {
   stopPlayback();
+  cancelNextUp();          // whatever is starting now replaces any queued episode
   const gen = ++playGen; // ignore late events from a stream we've already switched away from
   const video = $('#video');
   const overlay = $('#video-overlay');
@@ -1031,6 +1127,7 @@ function startResumeTracking() {
   // the end keeps a stale resume point instead of being cleared as finished.
   video.addEventListener('ended', saveResumeNow);
   video.addEventListener('pause', saveResumeNow);
+  video.addEventListener('ended', onEpisodeEnded);
 }
 
 /** Called on play; waits for metadata so duration can sanity-check the position. */

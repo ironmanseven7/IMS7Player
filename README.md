@@ -183,6 +183,12 @@ provider refuses it. Tiles use a trimmed version of the buffering profile (at mo
 TV stick out of memory. Cheaper sticks may also run out of hardware video decoders before
 four — if the third or fourth tile stays black, that is the device, not the stream.
 
+**Next episode.** Opening a series queues its episodes in running order, across season
+boundaries. When one ends, a panel over the picture counts down ten seconds to the next and then
+plays it; **Play now** skips the wait and **Cancel** stops it. The checkbox above the episode
+list turns autoplay off, in which case the panel still offers the next episode but waits to be
+asked. Live TV and films have nothing queued, so nothing follows them.
+
 **Resume.** Movies and episodes remember where you stopped, and jump back there with a
 "Resumed from 12:34" toast. Positions under 30 seconds are ignored and anything past 95 % is
 treated as finished and cleared. Movie rows show a thin progress bar of how far you got. Live

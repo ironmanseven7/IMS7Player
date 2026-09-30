@@ -1,6 +1,6 @@
 {
-  "version": "1.11.1",
-  "apkVersionCode": 14,
+  "version": "1.11.2",
+  "apkVersionCode": 15,
   "minApkForWeb": 13,
-  "notes": "Says plainly when a home network's filter is blocking the login, instead of blaming the panel."
+  "notes": "Series play the next episode on their own, with a countdown you can stop."
 }
