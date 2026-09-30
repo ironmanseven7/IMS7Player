@@ -1100,3 +1100,20 @@ body.tv .autonext { font-size: 16px; }
 body.tv .autonext:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
 body.phone .next-up { left: 8px; right: 8px; top: 8px; max-width: none; font-size: 12px; }
 body.phone .stats { top: auto; bottom: 8px; }   /* the panel owns the top on a narrow screen */
+
+/* ── "no sound" notice ──────────────────────────────────────
+   Under the title rather than over the picture: it is an explanation to read,
+   not a control, and it must not cover the player's own buttons. */
+.audio-note {
+  margin-top: 10px;
+  padding: 9px 12px;
+  background: rgba(227, 179, 65, .12);
+  border: 1px solid #9a6b1f;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #e3b341;
+}
+.audio-note b { color: #f0c96a; }
+body.tv .audio-note { font-size: 16px; }
+body.phone .audio-note { font-size: 12px; }

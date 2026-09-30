@@ -420,6 +420,7 @@ and also on desktop, the **Diagnostics** button in the top bar shows the same lo
 | "untrusted certificate" | Self-signed cert — restart with `XTREAM_INSECURE_TLS=1`, or use the `http://` address |
 | Live loads then stalls | Your line's max connections are in use elsewhere |
 | Movie plays audio, no video | MKV/HEVC container the browser can't decode — use VLC |
+| Picture but **no sound** | The title's audio is Dolby Digital (AC-3/E-AC-3) or DTS, which no browser decodes — the player says so after a few seconds. Play it in VLC, or try another copy of the title |
 
 **When the network is the problem.** Some home networks answer for the panel instead of letting
 the request through. AT&T's ActiveArmor / Internet Security does it to hosts it has flagged

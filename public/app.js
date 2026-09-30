@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.11.2';
+const CLIENT_VERSION = '1.11.3';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -900,6 +900,7 @@ let playGen = 0;
 function play(kind, id, ext, meta = {}) {
   stopPlayback();
   cancelNextUp();          // whatever is starting now replaces any queued episode
+  $('#audio-note').hidden = true;
   const gen = ++playGen; // ignore late events from a stream we've already switched away from
   const video = $('#video');
   const overlay = $('#video-overlay');
@@ -1057,6 +1058,7 @@ async function checkServerVersion() {
   startResumeTracking();
   watchForSlowStart();
   watchTiles();
+  watchForSilentAudio();
   let saved = null;
   try {
     saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
@@ -1627,6 +1629,51 @@ $('#diag').addEventListener('click', showDiagnostics);
  * because hls.js retries fragments many times before it calls an error fatal.
  * Say something after 12s and point at the log.
  */
+/* ── no sound ─────────────────────────────────────────────────
+ * Panels carry plenty of films and episodes with Dolby Digital (AC-3 / E-AC-3)
+ * or DTS soundtracks. Browsers decode the picture and drop that audio without
+ * complaint, which looks like a broken file. Chromium counts decoded bytes per
+ * stream, so "picture decoding, audio not" is a solid enough signal to say so
+ * rather than leave someone staring at a silent film.
+ */
+
+const SILENT_AFTER_MS = 6000;
+
+function watchForSilentAudio() {
+  const video = $('#video');
+  let playedMs = 0;
+  let key = null;
+
+  setInterval(() => {
+    const n = state.now;
+    const note = $('#audio-note');
+    if (!n || mv.active) return;
+
+    const nowKey = `${n.kind}:${n.id}`;
+    if (nowKey !== key) {
+      key = nowKey;
+      playedMs = 0;
+    }
+    // Muted or silenced on purpose is not a fault worth reporting.
+    if (video.paused || video.muted || !video.volume) return;
+
+    playedMs += 1000;
+    if (playedMs < SILENT_AFTER_MS || !note.hidden) return;
+
+    // Undefined on browsers without the counters (Firefox), which fails this test.
+    const audio = video.webkitAudioDecodedByteCount;
+    const picture = video.webkitVideoDecodedByteCount;
+    if (audio !== 0 || !picture) return;
+
+    note.innerHTML =
+      '<b>No sound from this one.</b> Its audio is in a format browsers cannot decode - usually Dolby Digital ' +
+      'or DTS - while the picture is unaffected. Play it in VLC for sound (use "Copy direct URL"), or try ' +
+      'another copy of the same title, which often carries ordinary AAC audio.';
+    note.hidden = false;
+    toast('No sound: this file uses audio the browser cannot decode. VLC will play it.', 5000);
+  }, 1000);
+}
+
 function watchForSlowStart() {
   setInterval(() => {
     const n = state.now;

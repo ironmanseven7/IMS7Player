@@ -1,6 +1,6 @@
 {
-  "version": "1.11.2",
-  "apkVersionCode": 15,
+  "version": "1.11.3",
+  "apkVersionCode": 16,
   "minApkForWeb": 13,
-  "notes": "Series play the next episode on their own, with a countdown you can stop."
+  "notes": "Says when a film or episode is silent because its audio is Dolby Digital or DTS, instead of just playing without sound."
 }
