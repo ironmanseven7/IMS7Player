@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>IMS7 Player - Fire TV Stick Install Guide</title>
+<style>
+  /* Printed with headless Chrome, which maps CSS pt to PDF pt one to one.
+     Ordinary print sizes here; guide/install-guide.html is the large-print
+     version and is deliberately left alone. */
+
+  @page { size: letter; margin: 0.6in; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Calibri, Arial, sans-serif;
+    font-size: 12pt;
+    line-height: 1.5;
+    color: #111;
+    background: #fff;
+  }
+
+  h1 { font-size: 26pt; line-height: 1.15; margin: 0 0 6pt; }
+  h2 { font-size: 15pt; margin: 0; }
+  h3 { font-size: 13pt; margin: 0 0 6pt; }
+  p { margin: 0 0 8pt; }
+  ul, ol { margin: 0 0 8pt; padding-left: 18pt; }
+  li { margin-bottom: 4pt; }
+
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+
+  .cover { text-align: center; padding-top: 36pt; }
+  .cover img { width: 150pt; height: 150pt; object-fit: contain; }
+  .cover .sub { font-size: 14pt; color: #444; margin-top: 2pt; }
+  .cover .meta { margin-top: 28pt; font-size: 11pt; color: #555; }
+
+  /* One step: number, heading, words, picture. Kept together on a page. */
+  .step {
+    page-break-inside: avoid;
+    margin-bottom: 20pt;
+    padding-bottom: 14pt;
+    border-bottom: 1pt solid #ddd;
+  }
+  .step:last-child { border-bottom: 0; }
+  .step-head {
+    display: flex;
+    align-items: center;
+    gap: 10pt;
+    margin-bottom: 8pt;
+  }
+  .num {
+    flex: 0 0 auto;
+    width: 26pt;
+    height: 26pt;
+    border-radius: 50%;
+    background: #15497f;
+    color: #fff;
+    font-size: 14pt;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .body { display: flex; gap: 14pt; align-items: flex-start; }
+  .words { flex: 1 1 auto; }
+  .pic { flex: 0 0 auto; width: 210pt; }
+  .pic svg { width: 100%; height: auto; display: block; border: 1pt solid #bbb; border-radius: 4pt; }
+  .caption { font-size: 9.5pt; color: #666; margin-top: 3pt; text-align: center; }
+
+  .url {
+    display: inline-block;
+    margin: 4pt 0 8pt;
+    padding: 7pt 11pt;
+    background: #f1f5fa;
+    border: 1.5pt solid #15497f;
+    border-radius: 5pt;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 15pt;
+    font-weight: 700;
+    letter-spacing: .3pt;
+  }
+
+  .note, .warn {
+    padding: 9pt 12pt;
+    border-radius: 5pt;
+    margin: 0 0 12pt;
+    font-size: 11pt;
+  }
+  .note { background: #f1f5fa; border-left: 4pt solid #15497f; }
+  .warn { background: #fff6e5; border-left: 4pt solid #b57300; }
+  .note b, .warn b { display: block; margin-bottom: 2pt; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 11pt; }
+  th, td { text-align: left; vertical-align: top; padding: 6pt 8pt; border-bottom: 1pt solid #ddd; }
+  th { background: #f3f3f3; }
+  td.q { width: 42%; font-weight: 600; }
+
+  .foot { margin-top: 18pt; font-size: 10pt; color: #666; }
+</style>
+</head>
+<body>
+
+<!-- ───────────────────────── cover ───────────────────────── -->
+<section class="page cover">
+  <img src="../public/brand/logo.png" alt="IMS7 Player" />
+  <h1>IMS7 Player</h1>
+  <div class="sub">How to install it on a Fire TV Stick</div>
+
+  <div style="max-width: 400pt; margin: 30pt auto 0; text-align: left;">
+    <h3>Before you start</h3>
+    <ul>
+      <li>A Fire TV Stick, plugged in and connected to wi-fi.</li>
+      <li>Your IPTV details: the server address, username and password - or the M3U link your provider sent you.</li>
+      <li>About ten minutes.</li>
+    </ul>
+
+    <div class="warn" style="margin-top: 14pt;">
+      <b>Already have IMS7 Player on this Fire TV?</b>
+      Uninstall it first - step 3. This is needed once, and once only: the app is
+      now signed properly, and Android will not install it over an older copy.
+      From then on it updates itself.
+    </div>
+  </div>
+
+  <div class="meta">Version 1.11.4 &middot; October 2026</div>
+</section>
+
+<!-- ───────────────────────── steps 1-2 ───────────────────────── -->
+<section class="page">
+
+  <div class="step">
+    <div class="step-head"><div class="num">1</div><h2>Get the Downloader app</h2></div>
+    <div class="body">
+      <div class="words">
+        <p>On the Fire TV home screen, go to the <b>magnifying glass</b> (Find) at the top left and choose <b>Search</b>.</p>
+        <p>Type <b>Downloader</b>, pick it from the list - the orange icon by AFTVnews - and choose <b>Get</b> or <b>Download</b>.</p>
+        <p>When it finishes, leave it for now. Do not open it yet.</p>
+      </div>
+      <div class="pic">
+        <svg viewBox="0 0 300 170" xmlns="http://www.w3.org/2000/svg">
+          <rect width="300" height="170" fill="#0b1320"/>
+          <circle cx="26" cy="22" r="9" fill="none" stroke="#9fb3c8" stroke-width="2.5"/>
+          <line x1="33" y1="29" x2="40" y2="36" stroke="#9fb3c8" stroke-width="2.5"/>
+          <text x="52" y="27" fill="#e6edf3" font-family="Arial" font-size="12">Search</text>
+          <rect x="18" y="48" width="264" height="22" rx="4" fill="#1b2a3d"/>
+          <text x="26" y="63" fill="#e6edf3" font-family="Arial" font-size="11">Downloader</text>
+          <rect x="18" y="82" width="74" height="74" rx="10" fill="#ff7a1a"/>
+          <circle cx="55" cy="112" r="17" fill="#fff"/>
+          <path d="M55 103 v15 M48 112 l7 7 l7-7" stroke="#ff7a1a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <rect x="40" y="134" width="30" height="4" rx="2" fill="#fff"/>
+          <rect x="104" y="82" width="74" height="74" rx="10" fill="#223247"/>
+          <rect x="190" y="82" width="74" height="74" rx="10" fill="#223247"/>
+          <text x="18" y="168" fill="#9fb3c8" font-family="Arial" font-size="9">Downloader is the first result</text>
+        </svg>
+        <div class="caption">What the search looks like</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="num">2</div><h2>Let Downloader install apps</h2></div>
+    <div class="body">
+      <div class="words">
+        <p>Go to <b>Settings</b> (the gear at the top of the home screen), then:</p>
+        <ol>
+          <li><b>My Fire TV</b></li>
+          <li><b>Developer options</b></li>
+          <li><b>Install unknown apps</b></li>
+          <li>Find <b>Downloader</b> in the list and press <b>OK</b> so it says <b>ON</b></li>
+        </ol>
+        <p>No <b>Developer options</b>? Go to <b>My Fire TV &rarr; About</b>, move down to
+          <b>Fire TV Stick</b> and press <b>OK</b> seven times. It then appears.</p>
+      </div>
+      <div class="pic">
+        <svg viewBox="0 0 300 170" xmlns="http://www.w3.org/2000/svg">
+          <rect width="300" height="170" fill="#0b1320"/>
+          <text x="18" y="28" fill="#e6edf3" font-family="Arial" font-size="12">Install unknown apps</text>
+          <line x1="18" y1="38" x2="282" y2="38" stroke="#31465f" stroke-width="1.5"/>
+          <rect x="18" y="52" width="264" height="34" rx="5" fill="#1b2a3d" stroke="#4c9aff" stroke-width="2"/>
+          <rect x="30" y="60" width="18" height="18" rx="4" fill="#ff7a1a"/>
+          <text x="58" y="74" fill="#e6edf3" font-family="Arial" font-size="11">Downloader</text>
+          <rect x="222" y="62" width="44" height="16" rx="8" fill="#2ea043"/>
+          <circle cx="258" cy="70" r="6" fill="#fff"/>
+          <text x="228" y="75" fill="#fff" font-family="Arial" font-size="9" font-weight="bold">ON</text>
+          <rect x="18" y="96" width="264" height="30" rx="5" fill="#141d2b"/>
+          <text x="30" y="115" fill="#9fb3c8" font-family="Arial" font-size="11">Silk Browser</text>
+          <rect x="222" y="103" width="44" height="16" rx="8" fill="#3a4a5e"/>
+          <circle cx="230" cy="111" r="6" fill="#cbd5e1"/>
+          <text x="18" y="150" fill="#9fb3c8" font-family="Arial" font-size="9">Downloader must say ON</text>
+        </svg>
+        <div class="caption">The switch must read ON</div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ───────────────────────── steps 3-4 ───────────────────────── -->
+<section class="page">
+
+  <div class="step">
+    <div class="step-head"><div class="num">3</div><h2>Remove the old copy (only if you have one)</h2></div>
+    <div class="body">
+      <div class="words">
+        <p>Skip this if IMS7 Player has never been on this Fire TV.</p>
+        <ol>
+          <li><b>Settings &rarr; Applications</b></li>
+          <li><b>Manage Installed Applications</b></li>
+          <li><b>IMS7 Player</b></li>
+          <li><b>Uninstall</b></li>
+        </ol>
+        <p>You will have to type your IPTV username and password again afterwards.
+          This is a one-off: future updates install themselves without any of this.</p>
+      </div>
+      <div class="pic">
+        <svg viewBox="0 0 300 170" xmlns="http://www.w3.org/2000/svg">
+          <rect width="300" height="170" fill="#0b1320"/>
+          <text x="18" y="28" fill="#e6edf3" font-family="Arial" font-size="12">Manage Installed Applications</text>
+          <line x1="18" y1="38" x2="282" y2="38" stroke="#31465f" stroke-width="1.5"/>
+          <rect x="18" y="52" width="264" height="32" rx="5" fill="#1b2a3d" stroke="#4c9aff" stroke-width="2"/>
+          <rect x="30" y="59" width="18" height="18" rx="4" fill="#c3372b"/>
+          <text x="58" y="73" fill="#e6edf3" font-family="Arial" font-size="11">IMS7 Player</text>
+          <rect x="18" y="96" width="128" height="26" rx="5" fill="#223247"/>
+          <text x="40" y="113" fill="#e6edf3" font-family="Arial" font-size="10">Force stop</text>
+          <rect x="154" y="96" width="128" height="26" rx="5" fill="#8c2b22"/>
+          <text x="186" y="113" fill="#fff" font-family="Arial" font-size="10" font-weight="bold">Uninstall</text>
+          <text x="18" y="150" fill="#9fb3c8" font-family="Arial" font-size="9">Only needed once</text>
+        </svg>
+        <div class="caption">Choose Uninstall</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="num">4</div><h2>Type the address into Downloader</h2></div>
+    <div class="body">
+      <div class="words">
+        <p>Open <b>Downloader</b>. If it asks for permission to access files, choose <b>Allow</b>.</p>
+        <p>On the <b>Home</b> tab there is a box for a web address. Select it and type:</p>
+        <div class="url">ironmanseven7.github.io/IMS7Player</div>
+        <p>No <b>www</b> and no <b>http</b> - just as printed. Then choose <b>Go</b>.</p>
+        <p>The download is about 4 MB and takes a few seconds.</p>
+      </div>
+      <div class="pic">
+        <svg viewBox="0 0 300 170" xmlns="http://www.w3.org/2000/svg">
+          <rect width="300" height="170" fill="#0b1320"/>
+          <rect x="0" y="0" width="70" height="170" fill="#121c2b"/>
+          <text x="12" y="30" fill="#ff7a1a" font-family="Arial" font-size="10" font-weight="bold">Home</text>
+          <text x="12" y="52" fill="#9fb3c8" font-family="Arial" font-size="10">Browser</text>
+          <text x="12" y="74" fill="#9fb3c8" font-family="Arial" font-size="10">Files</text>
+          <text x="12" y="96" fill="#9fb3c8" font-family="Arial" font-size="10">Settings</text>
+          <text x="86" y="40" fill="#e6edf3" font-family="Arial" font-size="11">Enter a URL</text>
+          <rect x="86" y="52" width="196" height="26" rx="5" fill="#fff" stroke="#4c9aff" stroke-width="2"/>
+          <text x="93" y="69" fill="#111" font-family="Consolas, monospace" font-size="9.5">ironmanseven7.github.io/IMS7Player</text>
+          <rect x="196" y="92" width="86" height="26" rx="5" fill="#ff7a1a"/>
+          <text x="226" y="109" fill="#fff" font-family="Arial" font-size="11" font-weight="bold">Go</text>
+          <text x="86" y="140" fill="#9fb3c8" font-family="Arial" font-size="9">Type it exactly as shown</text>
+        </svg>
+        <div class="caption">The address box on the Home tab</div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ───────────────────────── steps 5-6 ───────────────────────── -->
+<section class="page">
+
+  <div class="step">
+    <div class="step-head"><div class="num">5</div><h2>Install it</h2></div>
+    <div class="body">
+      <div class="words">
+        <p>When the download finishes, a grey box appears asking whether to install
+          <b>IMS7 Player</b>. Choose <b>Install</b> (bottom right).</p>
+        <p>Wait for <b>App installed</b>, then choose <b>Open</b>.</p>
+        <p>Downloader then offers to delete the file it downloaded. Choosing
+          <b>Delete</b> is fine - the app itself is already installed.</p>
+        <div class="note">
+          <b>"App not installed" instead?</b>
+          An older copy is still on the stick. Go back to step 3, uninstall it, then try again.
+        </div>
+      </div>
+      <div class="pic">
+        <svg viewBox="0 0 300 170" xmlns="http://www.w3.org/2000/svg">
+          <rect width="300" height="170" fill="#0b1320"/>
+          <rect x="30" y="24" width="240" height="122" rx="8" fill="#e9ecef"/>
+          <rect x="46" y="40" width="26" height="26" rx="6" fill="#c3372b"/>
+          <text x="82" y="58" fill="#111" font-family="Arial" font-size="12" font-weight="bold">IMS7 Player</text>
+          <text x="46" y="84" fill="#444" font-family="Arial" font-size="10">Do you want to install this application?</text>
+          <rect x="120" y="104" width="64" height="26" rx="5" fill="#c9ced4"/>
+          <text x="136" y="121" fill="#111" font-family="Arial" font-size="10">Cancel</text>
+          <rect x="192" y="104" width="64" height="26" rx="5" fill="#15497f"/>
+          <text x="206" y="121" fill="#fff" font-family="Arial" font-size="10" font-weight="bold">Install</text>
+        </svg>
+        <div class="caption">Choose Install, then Open</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="num">6</div><h2>Sign in</h2></div>
+    <div class="body">
+      <div class="words">
+        <p>The app opens on a sign-in screen. The quickest way:</p>
+        <p><b>Paste your M3U link</b> into the <b>Server URL</b> box - the long link your
+          provider sent, the one with <i>username=</i> and <i>password=</i> in it. The app
+          splits it up and fills in all three boxes for you.</p>
+        <p>Otherwise type them yourself:</p>
+        <ul>
+          <li><b>Server URL</b> - e.g. http://your-panel.com:8080</li>
+          <li><b>Username</b> and <b>Password</b> - exactly as given, capitals matter</li>
+        </ul>
+        <p>Leave <b>Remember on this machine</b> ticked, then choose <b>Connect</b>.</p>
+      </div>
+      <div class="pic">
+        <svg viewBox="0 0 300 170" xmlns="http://www.w3.org/2000/svg">
+          <rect width="300" height="170" fill="#0d1117"/>
+          <rect x="60" y="14" width="180" height="142" rx="8" fill="#141a23" stroke="#242c38"/>
+          <rect x="132" y="22" width="36" height="36" rx="8" fill="#c3372b"/>
+          <text x="150" y="74" fill="#e6edf3" font-family="Arial" font-size="11" font-weight="bold" text-anchor="middle">IMS7 Player</text>
+          <text x="72" y="92" fill="#8b98a8" font-family="Arial" font-size="7">Server URL</text>
+          <rect x="72" y="95" width="156" height="14" rx="3" fill="#0d1117" stroke="#4c9aff"/>
+          <text x="72" y="120" fill="#8b98a8" font-family="Arial" font-size="7">Username</text>
+          <rect x="72" y="123" width="156" height="14" rx="3" fill="#0d1117" stroke="#242c38"/>
+          <rect x="72" y="142" width="156" height="12" rx="3" fill="#4c9aff"/>
+          <text x="150" y="151" fill="#06101f" font-family="Arial" font-size="8" font-weight="bold" text-anchor="middle">Connect</text>
+        </svg>
+        <div class="caption">Paste the M3U link into the first box</div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ───────────────────────── using it ───────────────────────── -->
+<section class="page">
+  <h1 style="font-size: 20pt;">Using it with the remote</h1>
+
+  <table>
+    <tr><th>Button</th><th>What it does</th></tr>
+    <tr><td class="q">Arrows</td><td>Move between the columns: categories, channels, and the player on the right. Up from the top of a column reaches the menu bar.</td></tr>
+    <tr><td class="q">OK</td><td>Chooses whatever is highlighted.</td></tr>
+    <tr><td class="q">Back</td><td>Leaves full screen. Pressed again, it leaves the app.</td></tr>
+    <tr><td class="q">Microphone</td><td>Not the Alexa button - use the <b>Voice</b> button in the app's menu bar, then say "watch ESPN", "bring up movies", "multiview".</td></tr>
+  </table>
+
+  <h3 style="margin-top: 16pt;">Worth knowing</h3>
+  <table>
+    <tr><td class="q">Full screen</td><td>The <b>Full screen</b> button next to the title, or OK on the picture.</td></tr>
+    <tr><td class="q">Widescreen</td><td>Fills a 21:9 screen instead of leaving black bars at the sides. On a normal TV it is not needed.</td></tr>
+    <tr><td class="q">Multiview</td><td>Up to four channels at once. Pick one tile with OK to give it the sound; OK again makes the grid full screen.</td></tr>
+    <tr><td class="q">Next episode</td><td>Series play the next episode on their own, with a ten second countdown you can stop.</td></tr>
+    <tr><td class="q">Favourites</td><td>The star button beside a channel's name; they gather under the Favourites tab.</td></tr>
+    <tr><td class="q">Buffering</td><td>If a channel stutters, set <b>Buffering</b> in the menu bar to <b>Smooth</b>.</td></tr>
+  </table>
+
+  <div class="note" style="margin-top: 16pt;">
+    <b>Updates happen on their own now</b>
+    The app checks for a newer version and can install it without any of the steps
+    in this guide. You will see an <b>Update</b> banner, or you can switch on
+    automatic updates when it offers. Only rarely - when the app itself changes
+    rather than its screens - does it ask you to confirm an install.
+  </div>
+</section>
+
+<!-- ───────────────────────── trouble ───────────────────────── -->
+<section class="page">
+  <h1 style="font-size: 20pt;">If something goes wrong</h1>
+
+  <table>
+    <tr><th>What you see</th><th>What it means</th></tr>
+    <tr>
+      <td class="q">"App not installed" when installing</td>
+      <td>An older copy of IMS7 Player is still on the stick. Uninstall it (step 3) and install again.</td>
+    </tr>
+    <tr>
+      <td class="q">"Your internet connection is blocking this login"</td>
+      <td>Your home network, not the app. Some providers (AT&amp;T's ActiveArmor, for one) block sign-ins to IPTV addresses. Allow the address in your router's security settings, ask your IPTV provider for a different address, or try the stick on a phone hotspot to confirm.</td>
+    </tr>
+    <tr>
+      <td class="q">"Login rejected by the panel"</td>
+      <td>The username or password is wrong, or the line has expired. Capitals matter.</td>
+    </tr>
+    <tr>
+      <td class="q">A film plays with no sound</td>
+      <td>That file's soundtrack is Dolby Digital or DTS, which no browser can decode - the app says so after a few seconds. Try another copy of the same title, or play it in VLC.</td>
+    </tr>
+    <tr>
+      <td class="q">A channel never starts</td>
+      <td>Usually the line's connection limit: something else is already watching. The app shows how many connections your line allows.</td>
+    </tr>
+    <tr>
+      <td class="q">Picture stutters</td>
+      <td>Set <b>Buffering</b> to <b>Smooth</b> in the menu bar. It waits a little longer before starting but holds up better.</td>
+    </tr>
+    <tr>
+      <td class="q">Nothing above helps</td>
+      <td>Open <b>Diagnostics</b> in the menu bar. It lists exactly what the panel replied, with the password hidden, which is usually enough to tell what is wrong.</td>
+    </tr>
+  </table>
+
+  <h3 style="margin-top: 18pt;">The address again, for reference</h3>
+  <div class="url">ironmanseven7.github.io/IMS7Player</div>
+  <p style="font-size: 11pt;">If that ever fails to load, the long form works too:<br>
+    <span style="font-family: Consolas, monospace; font-size: 10pt;">github.com/ironmanseven7/IMS7Player/releases/latest/download/app-debug.apk</span></p>
+
+  <div class="foot">
+    IMS7 Player 1.11.4 &middot; the same app runs on Fire TV, Android TV boxes, phones and in a computer's browser.
+  </div>
+</section>
+
+</body>
+</html>

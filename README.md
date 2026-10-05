@@ -341,6 +341,11 @@ Downloader.) Without this, Downloader fetches the file and the install is refuse
 
 Then pick one of these.
 
+There are two printable guides in `guide/`: **Fire TV Stick Install Guide.pdf** (six pages, the
+one to hand to anyone installing it) and **Fire TV Install Guide - Large Print.pdf** (24pt, one
+step per page, for a reader with low vision). Rebuild either with the matching `build-*.bat`,
+which prints the HTML next to it with headless Chrome.
+
 ### The URL to type into Downloader
 
 ```
