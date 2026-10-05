@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.11.3';
+const CLIENT_VERSION = '1.11.4';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -1059,6 +1059,7 @@ async function checkServerVersion() {
   watchForSlowStart();
   watchTiles();
   watchForSilentAudio();
+  syncWideButton();
   let saved = null;
   try {
     saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
@@ -1212,6 +1213,14 @@ document.addEventListener('keydown', (e) => {
   if ((e.key === 'v' || e.key === 'V') && !typing) {
     e.preventDefault();
     voice.toggle();
+    return;
+  }
+
+  // Z fills the screen or gives the whole picture back, while full screen.
+  if ((e.key === 'z' || e.key === 'Z') && !typing && !mv.active &&
+      document.body.classList.contains('video-full')) {
+    e.preventDefault();
+    setVideoZoom(!zoomOn());
     return;
   }
 
@@ -1834,13 +1843,19 @@ function setVideoFull(on) {
 
   if (on) {
     history.pushState({ videoFull: true }, '');
-    if (mv.active) mv.tiles[mv.selected]?.pick.focus();
-    else $('#video').focus();
+    if (mv.active) {
+      mv.tiles[mv.selected]?.pick.focus();
+    } else {
+      // A monitor's shape does not change, so reuse the last choice.
+      document.body.classList.toggle('video-zoom', readPref(ZOOM_KEY) === '1');
+      $('#video').focus();
+    }
   } else {
-    document.body.classList.remove('mv-wide');
+    document.body.classList.remove('mv-wide', 'video-zoom');
     if (history.state && history.state.videoFull) history.back();   // popstate clears the class
   }
   $('#fullscreen').textContent = on ? '⤡ Exit full screen' : '⤢ Full screen';
+  syncWideButton();
 }
 
 /**
@@ -1856,17 +1871,68 @@ function setWideFull() {
   if (!document.body.classList.contains('video-full')) document.body.classList.remove('mv-wide');
 }
 
+/* ── widescreen for one picture ───────────────────────────────
+ * A 16:9 picture on a 21:9 monitor sits between two black pillars. Filling the
+ * screen crops a little off the top and bottom instead - the trade a TV's zoom
+ * button makes. Multiview has no need of it: four 16:9 tiles already fill a
+ * 21:9 screen, which is what the same button does there.
+ */
+
+const ZOOM_KEY = 'xtream.videoZoom';
+
+// A declaration, not a const: boot() paints the button before this point in the file.
+function zoomOn() {
+  return document.body.classList.contains('video-zoom');
+}
+
+function setVideoZoom(on) {
+  document.body.classList.toggle('video-zoom', on);
+  try {
+    localStorage.setItem(ZOOM_KEY, on ? '1' : '0');
+  } catch {}
+  syncWideButton();
+}
+
+/** One button, two jobs: the 21:9 multiview layout, or filling the screen with one picture. */
+function syncWideButton() {
+  const btn = $('#mv-wide');
+  if (mv.active) {
+    btn.textContent = '⬌ Widescreen';
+    btn.title = 'Full screen for 21:9 monitors: one big picture with the rest beside it';
+    return;
+  }
+  btn.textContent = zoomOn() ? '⬌ Whole picture' : '⬌ Widescreen';
+  btn.title = 'Fill a 21:9 screen, cropping a little off the top and bottom';
+}
+
+function wideButtonPressed() {
+  if (mv.active) {
+    setWideFull();
+    return;
+  }
+  if (document.body.classList.contains('video-full')) {
+    setVideoZoom(!zoomOn());
+    return;
+  }
+  setVideoZoom(true);
+  setVideoFull(true);
+  if (zoomOn()) {
+    toast('Filling the screen crops the top and bottom a little. The same button gives the whole picture back.', 4500);
+  }
+}
+
 function toggleVideoFull() {
   setVideoFull(!document.body.classList.contains('video-full'));
 }
 
 window.addEventListener('popstate', () => {
-  document.body.classList.remove('video-full', 'mv-wide');
+  document.body.classList.remove('video-full', 'mv-wide', 'video-zoom');
   $('#fullscreen').textContent = '⤢ Full screen';
+  syncWideButton();
 });
 
 $('#fullscreen').addEventListener('click', toggleVideoFull);
-$('#mv-wide').addEventListener('click', setWideFull);
+$('#mv-wide').addEventListener('click', wideButtonPressed);
 
 // Double-click / double-tap the picture, as in any other player.
 $('#video').addEventListener('dblclick', toggleVideoFull);
@@ -1976,7 +2042,7 @@ function enterMultiview() {
   $('#multiview').hidden = false;
   $('#copy-url').hidden = true;
   $('#mv-toggle').textContent = '✕ Exit multiview';
-  $('#mv-wide').hidden = false;
+  syncWideButton();
 
   if (seed) {
     addTile(seed);
@@ -2001,7 +2067,7 @@ function exitMultiview(keepSelected = true) {
   $('#multiview').hidden = true;
   $('#mv-toggle').textContent = '⊞ Multiview';
   $('#mv-remove').hidden = true;
-  $('#mv-wide').hidden = true;
+  syncWideButton();
 
   if (keep) {
     play('live', keep.id, null, { title: keep.name, logo: keep.logo, sub: 'Live', fav: keep.fav });

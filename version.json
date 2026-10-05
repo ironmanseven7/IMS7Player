@@ -1,6 +1,6 @@
 {
-  "version": "1.11.3",
-  "apkVersionCode": 16,
+  "version": "1.11.4",
+  "apkVersionCode": 17,
   "minApkForWeb": 13,
-  "notes": "Says when a film or episode is silent because its audio is Dolby Digital or DTS, instead of just playing without sound."
+  "notes": "Widescreen now works for a single picture too: fill a 21:9 screen instead of leaving black bars at the sides."
 }

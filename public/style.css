@@ -1117,3 +1117,9 @@ body.phone .stats { top: auto; bottom: 8px; }   /* the panel owns the top on a n
 .audio-note b { color: #f0c96a; }
 body.tv .audio-note { font-size: 16px; }
 body.phone .audio-note { font-size: 12px; }
+
+/* ── widescreen for the single player ───────────────────────
+   A 16:9 picture on a 21:9 monitor leaves a black pillar either side. Filling
+   the screen means cropping a little off the top and bottom instead - the same
+   trade a TV's zoom button makes. */
+body.video-full.video-zoom #video { object-fit: cover; }

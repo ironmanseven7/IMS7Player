@@ -13,8 +13,8 @@ android {
         // and every current Android TV box.
         minSdk = 26
         targetSdk = 34
-        versionCode = 16
-        versionName = "1.11.3"
+        versionCode = 17
+        versionName = "1.11.4"
     }
 
     // The permanent key, handed to CI builds from repository secrets. Android
