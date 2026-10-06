@@ -1,6 +1,6 @@
 {
-  "version": "1.11.4",
-  "apkVersionCode": 17,
+  "version": "1.11.5",
+  "apkVersionCode": 18,
   "minApkForWeb": 13,
-  "notes": "Widescreen now works for a single picture too: fill a 21:9 screen instead of leaving black bars at the sides."
+  "notes": "Widescreen now offers three choices on an ultrawide screen: the whole picture, filled (crops top and bottom), or stretched."
 }

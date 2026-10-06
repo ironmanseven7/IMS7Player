@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.11.4';
+const CLIENT_VERSION = '1.11.5';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -11,6 +11,31 @@ const CHUNK = 150;
 const STORE_KEY = 'xtream.creds';
 const FAV_KEY = 'xtream.favs';
 const BUFFER_KEY = 'xtream.buffer';
+const ZOOM_KEY = 'xtream.videoZoom';
+
+/**
+ * Three ways to put a 16:9 picture on a 21:9 screen, because none of them is
+ * free: keep the whole picture and accept bars at the sides, fill the screen
+ * and lose about a sixth of the height, or stretch and make everything a
+ * little wide. A film already letterboxed inside its 16:9 frame loses only
+ * those black bars to "fill", which is the case it exists for.
+ *
+ * Declared up here, not beside the functions that use them: boot() paints the
+ * button's label, and a const read before its line has run throws.
+ */
+const VIDEO_MODES = ['fit', 'fill', 'stretch'];
+
+const MODE_LABEL = {
+  fit: '⬌ Whole picture',
+  fill: '⬌ Filling the screen',
+  stretch: '⬌ Stretched to fit',
+};
+
+const MODE_TOAST = {
+  fit: 'Whole picture - black bars at the sides on an ultrawide screen, nothing lost.',
+  fill: 'Filling the screen - crops the top and bottom. Best for films that already have black bars above and below.',
+  stretch: 'Stretched to fit - nothing is cropped, but everything is a little wide.',
+};
 
 /**
  * Buffering profiles. The trade is always the same: how far behind the live edge
@@ -1216,11 +1241,11 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  // Z fills the screen or gives the whole picture back, while full screen.
+  // Z steps through whole picture / filled / stretched, while full screen.
   if ((e.key === 'z' || e.key === 'Z') && !typing && !mv.active &&
       document.body.classList.contains('video-full')) {
     e.preventDefault();
-    setVideoZoom(!zoomOn());
+    wideButtonPressed();
     return;
   }
 
@@ -1847,11 +1872,11 @@ function setVideoFull(on) {
       mv.tiles[mv.selected]?.pick.focus();
     } else {
       // A monitor's shape does not change, so reuse the last choice.
-      document.body.classList.toggle('video-zoom', readPref(ZOOM_KEY) === '1');
+      applyVideoMode(videoMode());
       $('#video').focus();
     }
   } else {
-    document.body.classList.remove('mv-wide', 'video-zoom');
+    document.body.classList.remove('mv-wide', 'video-fill', 'video-stretch');
     if (history.state && history.state.videoFull) history.back();   // popstate clears the class
   }
   $('#fullscreen').textContent = on ? '⤡ Exit full screen' : '⤢ Full screen';
@@ -1878,22 +1903,28 @@ function setWideFull() {
  * 21:9 screen, which is what the same button does there.
  */
 
-const ZOOM_KEY = 'xtream.videoZoom';
-
-// A declaration, not a const: boot() paints the button before this point in the file.
-function zoomOn() {
-  return document.body.classList.contains('video-zoom');
+// A declaration, not a const: boot() paints the button before this point in the
+// file. The values it reads live at the top of the file for the same reason.
+function videoMode() {
+  const saved = readPref(ZOOM_KEY);
+  if (saved === '1') return 'fill';        // the older on/off setting
+  return VIDEO_MODES.includes(saved) ? saved : 'fit';
 }
 
-function setVideoZoom(on) {
-  document.body.classList.toggle('video-zoom', on);
-  try {
-    localStorage.setItem(ZOOM_KEY, on ? '1' : '0');
-  } catch {}
+function applyVideoMode(mode) {
+  document.body.classList.toggle('video-fill', mode === 'fill');
+  document.body.classList.toggle('video-stretch', mode === 'stretch');
   syncWideButton();
 }
 
-/** One button, two jobs: the 21:9 multiview layout, or filling the screen with one picture. */
+function setVideoMode(mode) {
+  try {
+    localStorage.setItem(ZOOM_KEY, mode);
+  } catch {}
+  applyVideoMode(mode);
+}
+
+/** One button, two jobs: the 21:9 multiview layout, or how one picture fills the screen. */
 function syncWideButton() {
   const btn = $('#mv-wide');
   if (mv.active) {
@@ -1901,8 +1932,8 @@ function syncWideButton() {
     btn.title = 'Full screen for 21:9 monitors: one big picture with the rest beside it';
     return;
   }
-  btn.textContent = zoomOn() ? '⬌ Whole picture' : '⬌ Widescreen';
-  btn.title = 'Fill a 21:9 screen, cropping a little off the top and bottom';
+  btn.textContent = MODE_LABEL[videoMode()];
+  btn.title = 'How a 16:9 picture meets a 21:9 screen: whole picture, filled (crops top and bottom), or stretched';
 }
 
 function wideButtonPressed() {
@@ -1910,15 +1941,10 @@ function wideButtonPressed() {
     setWideFull();
     return;
   }
-  if (document.body.classList.contains('video-full')) {
-    setVideoZoom(!zoomOn());
-    return;
-  }
-  setVideoZoom(true);
-  setVideoFull(true);
-  if (zoomOn()) {
-    toast('Filling the screen crops the top and bottom a little. The same button gives the whole picture back.', 4500);
-  }
+  const next = VIDEO_MODES[(VIDEO_MODES.indexOf(videoMode()) + 1) % VIDEO_MODES.length];
+  setVideoMode(next);
+  toast(MODE_TOAST[next], 4500);
+  if (!document.body.classList.contains('video-full')) setVideoFull(true);
 }
 
 function toggleVideoFull() {
@@ -1926,7 +1952,7 @@ function toggleVideoFull() {
 }
 
 window.addEventListener('popstate', () => {
-  document.body.classList.remove('video-full', 'mv-wide', 'video-zoom');
+  document.body.classList.remove('video-full', 'mv-wide', 'video-fill', 'video-stretch');
   $('#fullscreen').textContent = '⤢ Full screen';
   syncWideButton();
 });

@@ -189,11 +189,13 @@ plays it; **Play now** skips the wait and **Cancel** stops it. The checkbox abov
 list turns autoplay off, in which case the panel still offers the next episode but waits to be
 asked. Live TV and films have nothing queued, so nothing follows them.
 
-**Widescreen.** On a 21:9 monitor a single 16:9 picture leaves a black pillar either side.
-**⬌ Widescreen** fills the screen instead, cropping a little off the top and bottom — a TV's zoom
-button, in other words — and the choice is remembered for the next time you go full screen. The
-**Z** key toggles it while full screen. In multiview the same button lays the tiles out for 21:9
-instead (one big picture with the rest beside it), which needs no cropping at all.
+**Widescreen.** A 16:9 picture on a 21:9 monitor cannot fill the screen for free, so the button
+steps through the three choices and remembers which one you left it on: **whole picture** (bars
+either side, nothing lost), **filling the screen** (crops about a sixth off the top and bottom —
+right for a film already letterboxed inside its 16:9 frame, wrong for sport with a scoreboard)
+and **stretched to fit** (nothing cropped, everything ~34 % wide). The button's label says which
+is in force, and **Z** steps through them in full screen. In multiview the same button lays the
+tiles out for 21:9 instead — one big picture with the rest beside it — which crops nothing.
 
 **Resume.** Movies and episodes remember where you stopped, and jump back there with a
 "Resumed from 12:34" toast. Positions under 30 seconds are ignored and anything past 95 % is

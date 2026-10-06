@@ -1122,4 +1122,5 @@ body.phone .audio-note { font-size: 12px; }
    A 16:9 picture on a 21:9 monitor leaves a black pillar either side. Filling
    the screen means cropping a little off the top and bottom instead - the same
    trade a TV's zoom button makes. */
-body.video-full.video-zoom #video { object-fit: cover; }
+body.video-full.video-fill #video { object-fit: cover; }    /* crops top and bottom */
+body.video-full.video-stretch #video { object-fit: fill; }   /* nothing cropped, a little wide */
