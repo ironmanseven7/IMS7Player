@@ -1,6 +1,6 @@
 {
-  "version": "1.11.5",
-  "apkVersionCode": 18,
+  "version": "1.11.6",
+  "apkVersionCode": 19,
   "minApkForWeb": 13,
-  "notes": "Widescreen now offers three choices on an ultrawide screen: the whole picture, filled (crops top and bottom), or stretched."
+  "notes": "The picture setting is a dropdown now - whole picture, fill the screen, stretch - rather than a button you press over and over."
 }

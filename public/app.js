@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 // Bump together with VERSION in server.js. The page comes off disk on every request,
 // so a server process left running from an older build serves this newer page.
-const CLIENT_VERSION = '1.11.5';
+const CLIENT_VERSION = '1.11.6';
 const STALE_SERVER =
   'The server.js process running in your terminal is older than this page. ' +
   'Close the "Start Player" window and run it again.';
@@ -24,12 +24,6 @@ const ZOOM_KEY = 'xtream.videoZoom';
  * button's label, and a const read before its line has run throws.
  */
 const VIDEO_MODES = ['fit', 'fill', 'stretch'];
-
-const MODE_LABEL = {
-  fit: '⬌ Whole picture',
-  fill: '⬌ Filling the screen',
-  stretch: '⬌ Stretched to fit',
-};
 
 const MODE_TOAST = {
   fit: 'Whole picture - black bars at the sides on an ultrawide screen, nothing lost.',
@@ -1241,11 +1235,11 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  // Z steps through whole picture / filled / stretched, while full screen.
-  if ((e.key === 'z' || e.key === 'Z') && !typing && !mv.active &&
-      document.body.classList.contains('video-full')) {
+  // Z steps through whole picture / filled / stretched. Not only in full screen:
+  // that restriction made the key look broken everywhere else.
+  if ((e.key === 'z' || e.key === 'Z') && !typing && !mv.active) {
     e.preventDefault();
-    wideButtonPressed();
+    cycleVideoMode();
     return;
   }
 
@@ -1924,27 +1918,24 @@ function setVideoMode(mode) {
   applyVideoMode(mode);
 }
 
-/** One button, two jobs: the 21:9 multiview layout, or how one picture fills the screen. */
+/**
+ * Two separate controls, because they answer different questions: the picture
+ * dropdown for a single player, the 21:9 tile layout for multiview.
+ */
 function syncWideButton() {
-  const btn = $('#mv-wide');
-  if (mv.active) {
-    btn.textContent = '⬌ Widescreen';
-    btn.title = 'Full screen for 21:9 monitors: one big picture with the rest beside it';
-    return;
-  }
-  btn.textContent = MODE_LABEL[videoMode()];
-  btn.title = 'How a 16:9 picture meets a 21:9 screen: whole picture, filled (crops top and bottom), or stretched';
+  $('#mv-wide').hidden = !mv.active;
+  $('#fit-wrap').hidden = mv.active;
+  $('#fit-mode').value = videoMode();
 }
 
-function wideButtonPressed() {
-  if (mv.active) {
-    setWideFull();
-    return;
-  }
-  const next = VIDEO_MODES[(VIDEO_MODES.indexOf(videoMode()) + 1) % VIDEO_MODES.length];
-  setVideoMode(next);
-  toast(MODE_TOAST[next], 4500);
-  if (!document.body.classList.contains('video-full')) setVideoFull(true);
+/** Chosen from the dropdown or stepped through with Z; takes effect at once. */
+function chooseVideoMode(mode) {
+  setVideoMode(mode);
+  toast(MODE_TOAST[mode], 4500);
+}
+
+function cycleVideoMode() {
+  chooseVideoMode(VIDEO_MODES[(VIDEO_MODES.indexOf(videoMode()) + 1) % VIDEO_MODES.length]);
 }
 
 function toggleVideoFull() {
@@ -1958,7 +1949,8 @@ window.addEventListener('popstate', () => {
 });
 
 $('#fullscreen').addEventListener('click', toggleVideoFull);
-$('#mv-wide').addEventListener('click', wideButtonPressed);
+$('#mv-wide').addEventListener('click', setWideFull);
+$('#fit-mode').addEventListener('change', (e) => chooseVideoMode(e.target.value));
 
 // Double-click / double-tap the picture, as in any other player.
 $('#video').addEventListener('dblclick', toggleVideoFull);

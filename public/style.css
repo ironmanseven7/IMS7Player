@@ -1124,3 +1124,24 @@ body.phone .audio-note { font-size: 12px; }
    trade a TV's zoom button makes. */
 body.video-full.video-fill #video { object-fit: cover; }    /* crops top and bottom */
 body.video-full.video-stretch #video { object-fit: fill; }   /* nothing cropped, a little wide */
+
+/* Picture fit, beside the other player controls. */
+.fit-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.fit-pick select {
+  padding: 5px 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: none;
+}
+.fit-pick select:focus { border-color: var(--accent); }
+body.tv .fit-pick { font-size: 15px; }
+body.tv .fit-pick select { padding: 8px 12px; font-size: 15px; }
+body.phone .fit-pick { font-size: 0; gap: 0; }        /* keep the control, drop the word */
+body.phone .fit-pick select { font-size: 12px; }
